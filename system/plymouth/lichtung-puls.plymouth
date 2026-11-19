@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Lichtung Puls
+Description=Lichtung-Schriftzug, der langsam atmet
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/lichtung-puls
+ScriptFile=/usr/share/plymouth/themes/lichtung-puls/lichtung-puls.script

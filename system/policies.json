@@ -8,14 +8,24 @@
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
     "DisableProfileImport": true,
-    "EncryptedMediaExtensions": { "Enabled": true, "Locked": false },
-    "UserMessaging": { "ExtensionRecommendations": false, "FeatureRecommendations": false, "UrlbarInterventions": false, "SkipOnboarding": true, "MoreFromMozilla": false },
-    "Homepage": { "URL": "http://127.0.0.1:8770/", "StartPage": "homepage" },
+    "EncryptedMediaExtensions": {
+      "Enabled": true,
+      "Locked": false
+    },
+    "UserMessaging": {
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true,
+      "MoreFromMozilla": false
+    },
+    "Homepage": {
+      "URL": "http://127.0.0.1:8770/",
+      "StartPage": "homepage"
+    },
     "ExtensionSettings": {
-      "uBlock0@raymondhill.net": {
-        "installation_mode": "force_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi",
-        "private_browsing": true
+      "*": {
+        "installation_mode": "blocked"
       }
     }
   }

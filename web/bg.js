@@ -10,6 +10,23 @@ L.BACKGROUNDS = [
   { id: 'wald', name: 'Nebelwald' },
   { id: 'fjord', name: 'Fjord' },
   { id: 'duene', name: 'Dünen' },
+  { id: 'see', name: 'Waldsee' },
+  { id: 'kueste', name: 'Leuchtturm' },
+  { id: 'gipfel', name: 'Alpengipfel' },
+  { id: 'huegel', name: 'Hügelland' },
+  { id: 'tundra', name: 'Tundra & Nordlicht' },
+  { id: 'stadt', name: 'Hafenstadt' },
+  { id: 'insel', name: 'Schäreninsel' },
+  { id: 'canyon', name: 'Canyon' },
+  { id: 'w_cupertino', name: 'Cupertino' },
+  { id: 'w_one', name: 'One' },
+  { id: 'w_flamme', name: 'Flamme' },
+  { id: 'w_konsole', name: 'Konsole' },
+  { id: 'w_fenster', name: 'Fenster' },
+  { id: 'w_adwaita', name: 'Adwaita' },
+  { id: 'w_breeze', name: 'Breeze' },
+  { id: 'w_aubergine', name: 'Aubergine' },
+  { id: 'w_matrix', name: 'Matrix' },
 ];
 
 L.renderBackground = function (container, bg) {

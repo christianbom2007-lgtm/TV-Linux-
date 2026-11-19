@@ -1,0 +1,33 @@
+{
+  "BraveRewardsDisabled": true,
+  "BraveWalletDisabled": true,
+  "BraveVPNDisabled": true,
+  "BraveAIChatEnabled": false,
+  "BraveNewsDisabled": true,
+  "BraveTalkDisabled": true,
+  "BraveP3AEnabled": false,
+  "BraveStatsPingEnabled": false,
+  "TorDisabled": true,
+  "DefaultBrowserSettingEnabled": false,
+  "PromotionalTabsEnabled": false,
+  "MetricsReportingEnabled": false,
+  "BackgroundModeEnabled": false,
+  "HardwareAccelerationModeEnabled": true,
+  "AutoplayAllowed": true,
+  "RestoreOnStartup": 1,
+  "DefaultNotificationsSetting": 2,
+  "DefaultGeolocationSetting": 2,
+  "BookmarkBarEnabled": true,
+  "ManagedBookmarks": [
+    { "toplevel_name": "Lichtung" },
+    { "name": "YouTube", "url": "https://www.youtube.com/" },
+    { "name": "ARD Mediathek", "url": "https://www.ardmediathek.de/" },
+    { "name": "ZDF", "url": "https://www.zdf.de/" },
+    { "name": "arte", "url": "https://www.arte.tv/de/" },
+    { "name": "3sat", "url": "https://www.3sat.de/" },
+    { "name": "NDR Mediathek", "url": "https://www.ndr.de/mediathek/" },
+    { "name": "tagesschau", "url": "https://www.tagesschau.de/" },
+    { "name": "Joyn", "url": "https://www.joyn.de/" },
+    { "name": "Twitch", "url": "https://www.twitch.tv/" }
+  ]
+}

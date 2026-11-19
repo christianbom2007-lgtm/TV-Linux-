@@ -32,7 +32,7 @@ user_pref("media.eme.enabled", true);
 user_pref("media.gmp-widevinecdm.visible", true);
 user_pref("media.gmp-widevinecdm.enabled", true);
 // Eigene Lichtung-Erweiterung ist nicht bei Mozilla signiert → in Firefox ESR erlaubt
-user_pref("xpinstall.signatures.required", false);
+user_pref("xpinstall.signatures.required", true);
 user_pref("extensions.autoDisableScopes", 0);
 user_pref("extensions.enabledScopes", 15);
 // Ruhe: keine Benachrichtigungs-/Standortanfragen, keine Telemetrie

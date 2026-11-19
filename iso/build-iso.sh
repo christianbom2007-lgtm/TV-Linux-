@@ -30,7 +30,7 @@ sed -i 's/^timeout .*/timeout 80/' iso-files/isolinux.cfg
 
 echo "==> Lichtung-Dateien einpacken"
 rm -rf lichtung && mkdir lichtung
-( cd "$ROOT" && cp -r install.sh README.md web server system extension defaults "$WORK/lichtung/" )
+( cd "$ROOT" && cp -r install.sh README.md web server system brave-extension defaults "$WORK/lichtung/" )
 
 OUT="$WORK/lichtung-tv.iso"
 rm -f "$OUT"

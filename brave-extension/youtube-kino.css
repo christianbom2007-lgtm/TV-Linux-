@@ -1,0 +1,13 @@
+/* Lichtung TV – YouTube "Kinomodus": dunkler, ruhiger, größer.
+   Greift nur, wenn am <html> die Klasse lichtung-kino gesetzt ist
+   (Einstellungen → Browser & YouTube → Kinomodus). */
+html.lichtung-kino, html.lichtung-kino body, html.lichtung-kino ytd-app { background: #050706 !important; }
+html.lichtung-kino ytd-watch-flexy[theater] #full-bleed-container { max-height: calc(100vh - 56px) !important; height: calc(100vh - 56px) !important; background: #000 !important; }
+html.lichtung-kino #masthead-container, html.lichtung-kino ytd-masthead { background: rgba(5,7,6,.96) !important; }
+html.lichtung-kino ytd-rich-grid-media #video-title, html.lichtung-kino #video-title { font-size: 1.7rem !important; line-height: 2.3rem !important; }
+html.lichtung-kino ytd-thumbnail, html.lichtung-kino ytd-rich-grid-media { transition: transform .2s ease !important; }
+html.lichtung-kino ytd-rich-item-renderer:hover ytd-thumbnail { transform: scale(1.04); }
+/* Werbe-Banner und "Premium testen"-Hinweise ausblenden */
+html.lichtung-kino ytd-banner-promo-renderer, html.lichtung-kino ytd-statement-banner-renderer,
+html.lichtung-kino ytd-mealbar-promo-renderer, html.lichtung-kino #masthead-ad, html.lichtung-kino ytd-ad-slot-renderer,
+html.lichtung-kino ytd-in-feed-ad-layout-renderer, html.lichtung-kino ytd-promoted-sparkles-web-renderer { display: none !important; }

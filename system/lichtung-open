@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+# Lichtung TV – "Standard-Browser" des Systems.
+# Wird aufgerufen, wenn ein anderes Programm einen Link öffnen will – vor
+# allem KDE Connect, wenn du am Handy auf "Teilen → Lichtung" tippst.
+# Statt den Link stumm zu öffnen, fragt der Fernseher: Öffnen oder als Kachel?
+import json
+import sys
+import urllib.request
+
+for url in sys.argv[1:] or [""]:
+    if not url:
+        continue
+    body = json.dumps({"url": url}).encode("utf-8")
+    req = urllib.request.Request("http://127.0.0.1:8770/api/incoming", data=body, method="POST",
+                                 headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=4).read()
+    except Exception:
+        # Dienst nicht erreichbar → einfach direkt in Brave öffnen
+        import subprocess
+        subprocess.Popen(["brave-browser", url])

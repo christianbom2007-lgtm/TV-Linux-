@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Lichtung Sterne
+Description=Sternenhimmel mit Lichtung-Schriftzug
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/lichtung-sterne
+ScriptFile=/usr/share/plymouth/themes/lichtung-sterne/lichtung-sterne.script

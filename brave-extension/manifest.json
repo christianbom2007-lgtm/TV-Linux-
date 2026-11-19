@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Lichtung TV",
+  "version": "2.0.0",
+  "description": "Verbindet Brave mit Lichtung TV: Weiterschauen, YouTube-Kinomodus, Auto-HD, gleiche Lautstärke, TV-Zoom.",
+  "icons": { "48": "icon48.png", "128": "icon128.png" },
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["http://127.0.0.1:8770/*", "<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": ["http://127.0.0.1:8770/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["youtube-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "css": ["youtube-kino.css"],
+      "run_at": "document_start"
+    }
+  ]
+}

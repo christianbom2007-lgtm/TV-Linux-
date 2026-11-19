@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lichtung TV
+Comment=Links auf dem Fernseher öffnen oder als Kachel speichern
+Exec=/opt/lichtung-tv/system/lichtung-open %U
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
+NoDisplay=true
+Terminal=false

@@ -44,7 +44,7 @@ function mediaCard(it) {
 function mediaMenu(it) {
   menu(it.title, `${channelName(it.channel)} · ${it.topic}`, [
     { label: 'Abspielen', key: '↵', run: () => (location.href = playUrl(it)) },
-    { label: 'Auf der Website öffnen', run: () => it.website && (location.href = it.website) },
+    { label: 'Auf der Website öffnen (Brave)', run: () => it.website && openWeb(it.website, 'tab', it.title) },
     { label: `Mehr von „${it.topic.slice(0, 28)}“`, run: () => openSearch(it.topic) },
   ]);
 }

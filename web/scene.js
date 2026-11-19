@@ -90,18 +90,41 @@
   }
 
   /* ---------- Landschaften ---------- */
+  // Landschaften: layers = Bergketten [Höhe, Ausschlag, Rauheit], pines = Tannenreihen,
+  // water = Wasserlinie, jag = schroffe Gipfel, extra = Besonderheiten (Stadt, Leuchtturm …)
   const SCENES = {
     nacht: { seed: 7, layers: [[0.55, 0.24, 1], [0.68, 0.16, 0.8], [0.82, 0.10, 0.6]], pines: [[1.0, 0.13, 26]], peaks: true },
     wald: { seed: 21, layers: [[0.56, 0.12, 0.6]], pines: [[0.68, 0.07, 70], [0.86, 0.12, 40], [1.02, 0.2, 18]] },
     fjord: { seed: 42, layers: [[0.52, 0.22, 1], [0.60, 0.10, 0.5]], water: 0.6, peaks: true },
     duene: { seed: 9, layers: [[0.66, 0.08, 0.2], [0.76, 0.10, 0.15], [0.90, 0.12, 0.1]] },
+    see: { seed: 33, layers: [[0.54, 0.10, 0.5]], pines: [[0.62, 0.05, 90]], water: 0.64, reflect: true },
+    kueste: { seed: 51, layers: [[0.72, 0.05, 0.2]], water: 0.6, sea: true, extra: 'leuchtturm' },
+    gipfel: { seed: 64, layers: [[0.50, 0.30, 1], [0.64, 0.20, 0.9], [0.80, 0.10, 0.6]], peaks: true, jag: 2.2, pines: [[1.0, 0.1, 30]] },
+    huegel: { seed: 77, layers: [[0.62, 0.07, 0.15], [0.72, 0.08, 0.15], [0.84, 0.09, 0.12]], trees: true },
+    tundra: { seed: 88, layers: [[0.74, 0.04, 0.3], [0.84, 0.05, 0.2]], aurora: true },
+    stadt: { seed: 95, layers: [[0.78, 0.04, 0.2]], water: 0.8, extra: 'stadt' },
+    insel: { seed: 15, layers: [], water: 0.66, sea: true, extra: 'insel' },
+    canyon: { seed: 27, layers: [[0.5, 0.18, 1.4], [0.62, 0.14, 1.2], [0.78, 0.1, 1]], jag: 1.6, warm: [120, 62, 40] },
+    // Abstrakte Hintergründe für die Design-Welten (eigene Entwürfe, keine Original-Bilder)
+    w_cupertino: { wall: [[18, 22, 52], [[120, 80, 230, 0.55, 0.25, 0.35, 0.7], [40, 140, 255, 0.5, 0.75, 0.55, 0.8], [255, 90, 160, 0.35, 0.55, 0.9, 0.6]]] },
+    w_one: { wall: [[6, 12, 28], [[30, 120, 255, 0.45, 0.2, 0.2, 0.9], [20, 210, 200, 0.3, 0.85, 0.8, 0.7]]] },
+    w_flamme: { wall: [[8, 14, 26], [[255, 140, 40, 0.38, 0.9, 0.95, 0.75], [40, 70, 140, 0.4, 0.15, 0.1, 0.8]]] },
+    w_konsole: { wall: [[4, 6, 5], [[60, 200, 80, 0.4, 0.5, 1.15, 0.9], [20, 90, 40, 0.5, 0.15, 0.0, 0.6]]] },
+    w_fenster: { wall: [[8, 14, 34], [[60, 130, 255, 0.6, 0.5, 0.55, 0.45], [120, 90, 255, 0.4, 0.42, 0.5, 0.7]]], bloom: true },
+    w_adwaita: { wall: [[24, 26, 36], [[80, 110, 220, 0.45, 0.1, 0.9, 0.9], [150, 90, 200, 0.35, 0.9, 0.1, 0.8]]] },
+    w_breeze: { wall: [[16, 20, 26], [[40, 140, 220, 0.4, 0.8, 0.3, 0.8]]], tri: true },
+    w_aubergine: { wall: [[44, 0, 30], [[233, 84, 32, 0.55, 1.0, 1.0, 0.9], [119, 33, 111, 0.6, 0.1, 0.1, 0.9]]] },
+    w_matrix: { wall: [[0, 4, 0], [[0, 120, 40, 0.25, 0.5, 0.5, 1]]], matrix: true },
   };
+  const SEASON_SCENE = ['nacht', 'nacht', 'see', 'see', 'huegel', 'kueste', 'kueste', 'kueste', 'wald', 'wald', 'wald', 'nacht'];
 
-  function ridgePath(w, h, base, amp, rough, r) {
-    const p = [r() * 10, r() * 10, r() * 10], pts = [];
+  function ridgePath(w, h, base, amp, rough, r, jag = 0) {
+    const p = [r() * 10, r() * 10, r() * 10, r() * 10], pts = [];
     for (let x = 0; x <= w; x += 3) {
       const t = x / w;
-      pts.push([x, base - Math.sin(t * 3.1 + p[0]) * amp * 0.55 - Math.sin(t * 7.3 + p[1]) * amp * 0.25 * rough - Math.abs(Math.sin(t * 17 + p[2])) * amp * 0.12 * rough]);
+      let y = base - Math.sin(t * 3.1 + p[0]) * amp * 0.55 - Math.sin(t * 7.3 + p[1]) * amp * 0.25 * rough - Math.abs(Math.sin(t * 17 + p[2])) * amp * 0.12 * rough;
+      if (jag) y -= Math.pow(Math.abs(Math.sin(t * 9 + p[3])), 6) * amp * 0.35 * jag - Math.abs(Math.sin(t * 41 + p[2])) * amp * 0.03 * jag;
+      pts.push([x, y]);
     }
     return pts;
   }
@@ -118,13 +141,17 @@
     ctx.closePath(); ctx.fill();
   }
 
+  /* Jahreszeit: 0 Winter, 1 Frühling, 2 Sommer, 3 Herbst */
+  function season(d) { const m = d.getMonth(); return m <= 1 || m === 11 ? 0 : m <= 4 ? 1 : m <= 7 ? 2 : 3; }
+  const SEASON_TINT = [[0, 0, 0], [6, 14, 0], [0, 6, 0], [22, 6, -8]];
+
   /* ======================================================================
    * Die Szene
    * ====================================================================== */
   class Scene {
     constructor(container, opts = {}) {
       this.container = container;
-      this.opts = Object.assign({ scene: 'nacht', motion: 'voll', weatherFx: true, aurora: false, scale: 0.6, fps: 30 }, opts);
+      this.opts = Object.assign({ scene: 'nacht', motion: 'voll', weatherFx: true, aurora: false, scale: 0.6, fps: 30, season: false, seasonFx: true }, opts);
       this.loc = { lat: 54.32, lon: 10.12 };
       this.weather = null;       // Open-Meteo-Antwort
       this.override = null;      // Vorschau: { hour, kind }
@@ -142,10 +169,13 @@
       this.particles = []; this.clouds = []; this.stars = []; this.shooting = null; this.birds = null; this.bolt = null;
       this.running = false; this.last = 0; this.lastStatic = 0;
       this.resize();
+      if (opts.static) return;     // Vorschaubild: keine Animation, keine Ereignisse
       this._onResize = () => { this.resize(); this.drawStatic(true); };
       addEventListener('resize', this._onResize);
       document.addEventListener('visibilitychange', () => (document.hidden ? this.stop() : this.start()));
     }
+    /* Welche Landschaft gerade gilt (bei "Jahreszeiten" wechselt sie automatisch) */
+    sceneId() { return this.opts.season ? SEASON_SCENE[new Date().getMonth()] : this.opts.scene; }
 
     /* ----- Konfiguration ----- */
     set(opts) {
@@ -171,8 +201,8 @@
 
     resize() {
       const s = this.opts.scale;
-      this.w = Math.max(320, Math.round(innerWidth * s));
-      this.h = Math.max(180, Math.round(innerHeight * s));
+      this.w = this.opts.width || Math.max(320, Math.round(innerWidth * s));
+      this.h = this.opts.height || Math.max(180, Math.round(innerHeight * s));
       for (const c of [this.base, this.fx]) { c.width = this.w; c.height = this.h; }
       this.resetFx();
     }
@@ -196,14 +226,14 @@
       const month = d.getMonth();
       const temp = c.temperature_2m ?? 8;
       return { d, sunAlt: sun.alt, sunH: sun.H, moonAlt: moon.alt, moonH: moon.H, phase: moonPhase(d), kind, cover, wind,
-        winter: month === 11 || month <= 1 || temp < 1, summer: month >= 4 && month <= 7 };
+        winter: month === 11 || month <= 1 || temp < 1, summer: month >= 4 && month <= 7, season: season(d) };
     }
 
     /* ----- statische Ebene ----- */
     drawStatic(force) {
       const st = this.state();
       this.st = st;
-      const key = [Math.round(st.sunAlt * 2), st.kind, Math.round(st.cover / 10), this.opts.scene, this.photo, this.w].join('|');
+      const key = [Math.round(st.sunAlt * 2), st.kind, Math.round(st.cover / 10), this.sceneId(), this.photo, this.w, this.opts.season].join('|');
       if (!force && key === this._key) return;
       this._key = key;
       const ctx = this.base.getContext('2d'), w = this.w, h = this.h;
@@ -220,7 +250,9 @@
       g.addColorStop(0, rgb(top)); g.addColorStop(0.55, rgb(mid)); g.addColorStop(0.75, rgb(hor)); g.addColorStop(1, rgb(mix(hor, [8, 10, 10], 0.6)));
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
-      const r = rng(SCENES[this.opts.scene]?.seed || 7);
+      const r = rng(SCENES[this.sceneId()]?.seed || 7);
+      const wallScene = SCENES[this.sceneId()];
+      if (wallScene && wallScene.wall && !this.photo) { this.drawWall(ctx, wallScene, r); return; }
       // Sterne (Positionen fest, Sichtbarkeit nach Dämmerung und Wolken)
       this.starAlpha = clamp((-st.sunAlt - 4) / 10, 0, 1) * clamp(1 - st.cover / 85, 0, 1);
       this.stars = [];
@@ -274,13 +306,43 @@
       if (!this.photo) this.drawLand(ctx, st, r);
     }
 
+    /* Abstrakter Hintergrund: Grundfarbe + weiche Farbflecken (+ Muster) */
+    drawWall(ctx, sc, r) {
+      const w = this.w, h = this.h, [base, blobs] = sc.wall;
+      ctx.fillStyle = rgb(base); ctx.fillRect(0, 0, w, h);
+      for (const [cr, cg, cb, a, x, y, rad] of blobs) {
+        const g = ctx.createRadialGradient(w * x, h * y, 0, w * x, h * y, Math.max(w, h) * rad);
+        g.addColorStop(0, `rgba(${cr},${cg},${cb},${a})`); g.addColorStop(0.5, `rgba(${cr},${cg},${cb},${a * 0.35})`); g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      }
+      if (sc.bloom) {   // weiche Blütenblätter in der Mitte
+        ctx.save(); ctx.translate(w * 0.5, h * 0.55);
+        for (let i = 0; i < 7; i++) {
+          ctx.rotate(Math.PI * 2 / 7);
+          const g = ctx.createLinearGradient(0, 0, 0, -h * 0.42);
+          g.addColorStop(0, 'rgba(90,160,255,0.0)'); g.addColorStop(0.6, 'rgba(110,170,255,0.22)'); g.addColorStop(1, 'rgba(180,210,255,0.05)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -h * 0.2, h * 0.09, h * 0.24, 0, 0, 7); ctx.fill();
+        }
+        ctx.restore();
+      }
+      if (sc.tri) {     // feine geometrische Dreiecke
+        ctx.strokeStyle = 'rgba(120,180,230,0.07)'; ctx.lineWidth = 1;
+        for (let i = 0; i < 40; i++) { const x = r() * w, y = r() * h, s = h * (0.05 + r() * 0.15); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + s, y + s * 0.3); ctx.lineTo(x + s * 0.3, y + s); ctx.closePath(); ctx.stroke(); }
+      }
+      this.light = 0.15; this.starAlpha = 0; this.moonPos = null; this.waterY = null; this.lighthouse = null; this.windows = null;
+      this.onLight && this.onLight(0.1);
+    }
+
     drawLand(ctx, st, r) {
-      const w = this.w, h = this.h, sc = SCENES[this.opts.scene] || SCENES.nacht, L = this.light;
+      const w = this.w, h = this.h, sc = SCENES[this.sceneId()] || SCENES.nacht, L = this.light;
       const hor = this.skyHor;
-      const base = (depth) => mix(mix([28, 36, 40], hor, 0.25 * (1 - depth)), [70, 86, 82], L * (1 - depth * 0.6));
+      // Jahreszeit färbt die Landschaft leicht (Frühling grüner, Herbst wärmer)
+      const tint = this.opts.season || this.opts.seasonFx ? SEASON_TINT[st.season] : [0, 0, 0];
+      const landBase = sc.warm ? sc.warm : [28 + tint[0], 36 + tint[1], 40 + tint[2]];
+      const base = (depth) => mix(mix(landBase, hor, 0.25 * (1 - depth)), sc.warm ? [150, 96, 70] : [70 + tint[0], 86 + tint[1], 82], L * (1 - depth * 0.6));
       sc.layers.forEach(([y, amp, rough], i) => {
         const depth = i / Math.max(1, sc.layers.length);
-        const pts = ridgePath(w, h, h * y, h * amp, rough, r);
+        const pts = ridgePath(w, h, h * y, h * amp, rough, r, sc.jag || 0);
         fillPath(ctx, pts, w, h, rgb(mix(base(depth), [6, 8, 8], depth * 0.75)));
         // Schneekappen im Winter auf den hohen Bergen
         if (st.winter && sc.peaks && i === 0) {
@@ -295,11 +357,68 @@
       });
       if (sc.water) {
         const wy = h * sc.water;
+        if (sc.reflect) {   // See: Spiegelbild der Landschaft
+          ctx.save(); ctx.globalAlpha = 0.35; ctx.translate(0, wy * 2); ctx.scale(1, -1);
+          ctx.drawImage(this.base, 0, 0, w, wy, 0, 0, w, wy); ctx.restore();
+        }
         const wg = ctx.createLinearGradient(0, wy, 0, h);
-        wg.addColorStop(0, rgb(mix(this.skyHor, [10, 14, 18], 0.55), 0.95)); wg.addColorStop(1, 'rgba(5,7,10,1)');
+        wg.addColorStop(0, rgb(mix(this.skyHor, [10, 14, 18], sc.sea ? 0.35 : 0.55), sc.reflect ? 0.7 : 0.95)); wg.addColorStop(1, 'rgba(5,7,10,1)');
         ctx.fillStyle = wg; ctx.fillRect(0, wy, w, h - wy);
+        if (sc.sea) {     // Meer: Horizontlinie und Wellenstriche
+          ctx.fillStyle = rgb(mix(this.skyHor, [255, 255, 255], 0.15), 0.35); ctx.fillRect(0, wy, w, 1);
+          ctx.strokeStyle = rgb(mix(this.skyHor, [220, 220, 220], 0.3), 0.08);
+          for (let i = 0; i < 70; i++) { const y = wy + Math.pow(r(), 1.6) * (h - wy), x = r() * w, l = 10 + (y - wy) / (h - wy) * 70; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + l, y); ctx.stroke(); }
+        }
         this.waterY = wy;
       } else this.waterY = null;
+      this.lighthouse = null;
+      if (sc.extra === 'leuchtturm') {
+        // Klippe rechts mit Leuchtturm (Lichtkegel dreht sich in der Animation)
+        const cx = w * 0.78, cy = h * 0.6;
+        ctx.fillStyle = rgb(mix(base(0.4), [4, 6, 6], 0.5));
+        ctx.beginPath(); ctx.moveTo(w * 0.62, h); ctx.lineTo(w * 0.66, cy + h * 0.02); ctx.lineTo(w * 0.74, cy - h * 0.01); ctx.lineTo(w * 0.86, cy - h * 0.02); ctx.lineTo(w * 0.93, cy + h * 0.03); ctx.lineTo(w, cy + h * 0.06); ctx.lineTo(w, h); ctx.fill();
+        const tw = h * 0.018, th = h * 0.11, tx = cx, ty = cy - h * 0.012;
+        ctx.fillStyle = rgb(mix([200, 196, 188], [20, 22, 24], 1 - L * 0.8));
+        ctx.beginPath(); ctx.moveTo(tx - tw, ty); ctx.lineTo(tx - tw * 0.7, ty - th); ctx.lineTo(tx + tw * 0.7, ty - th); ctx.lineTo(tx + tw, ty); ctx.fill();
+        ctx.fillStyle = 'rgba(160,40,36,.75)'; ctx.fillRect(tx - tw * 0.85, ty - th * 0.55, tw * 1.7, th * 0.12);
+        this.lighthouse = { x: tx, y: ty - th - h * 0.008 };
+      }
+      if (sc.extra === 'stadt') {
+        // Skyline am Wasser mit Fensterlichtern (nachts mehr Lichter)
+        const night = clamp(1 - L * 1.6, 0, 1), gy = h * 0.8;
+        ctx.fillStyle = rgb(mix(base(0.3), [6, 8, 10], 0.65));
+        let x = 0;
+        this.windows = [];
+        while (x < w) {
+          const bw = w * (0.025 + r() * 0.045), bh = h * (0.06 + Math.pow(r(), 1.5) * 0.26);
+          ctx.fillRect(x, gy - bh, bw, bh);
+          if (r() < 0.12) ctx.fillRect(x + bw * 0.45, gy - bh - h * 0.03, bw * 0.08, h * 0.03);   // Antenne
+          for (let yy = gy - bh + h * 0.012; yy < gy - h * 0.01; yy += h * 0.016)
+            for (let xx = x + bw * 0.12; xx < x + bw - bw * 0.15; xx += bw * 0.2)
+              if (r() < 0.32 * night + 0.03) this.windows.push([xx, yy, r()]);
+          x += bw + w * 0.002;
+        }
+        for (const [wx, wy, k] of this.windows) { ctx.fillStyle = `rgba(255,${200 + k * 40},${120 + k * 60},${0.5 + k * 0.4})`; ctx.fillRect(wx, wy, Math.max(1, w * 0.003), Math.max(1, h * 0.005)); }
+        // Spiegelung der Lichter im Hafen
+        ctx.globalAlpha = 0.18;
+        for (const [wx, wy, k] of this.windows) { ctx.fillStyle = 'rgba(255,210,150,1)'; ctx.fillRect(wx, gy + (gy - wy) * 0.4, w * 0.003, h * 0.002); }
+        ctx.globalAlpha = 1;
+      }
+      if (sc.extra === 'insel') {
+        const ix = w * 0.62, iy = h * 0.66;
+        ctx.fillStyle = rgb(mix(base(0.3), [6, 8, 8], 0.6));
+        ctx.beginPath(); ctx.ellipse(ix, iy, w * 0.16, h * 0.035, 0, Math.PI, 0); ctx.fill();
+        for (let k = 0; k < 9; k++) pine(ctx, ix - w * 0.12 + r() * w * 0.24, iy - h * 0.008, h * (0.02 + r() * 0.025));
+      }
+      if (sc.trees) {     // Hügel: einzelne runde Laubbäume (Herbst: rötlich)
+        const leaf = st.season === 3 ? [90, 52, 28] : st.season === 1 ? [46, 70, 40] : [30, 46, 36];
+        ctx.fillStyle = rgb(mix(mix(leaf, [6, 8, 8], 0.5), [90, 110, 90], L * 0.4));
+        for (let k = 0; k < 14; k++) {
+          const tx = r() * w, ty = h * (0.66 + r() * 0.2), tr = h * (0.012 + r() * 0.02);
+          ctx.fillRect(tx - tr * 0.08, ty, tr * 0.16, tr * 1.2);
+          ctx.beginPath(); ctx.arc(tx, ty, tr, 0, 7); ctx.fill();
+        }
+      }
       (sc.pines || []).forEach(([y, size, n], i) => {
         ctx.fillStyle = rgb(mix(base(0.6 + i * 0.2), [4, 6, 5], 0.55 + i * 0.15));
         for (let k = 0; k < n; k++) pine(ctx, r() * w, h * y + r() * h * size * 0.4, h * size * (0.6 + r() * 0.8));
@@ -334,7 +453,7 @@
       const n = { rain: 420, drizzle: 260, storm: 520, snow: 260 }[st.kind] || 0;
       this.particles = Array.from({ length: Math.round(n * I) }, () => this.newDrop(st, true));
       // Glühwürmchen: Sommernacht im Wald, trocken
-      this.fireflies = (this.opts.scene === 'wald' && st.summer && st.sunAlt < -3 && ['clear', 'partly'].includes(st.kind))
+      this.fireflies = (['wald', 'see', 'huegel'].includes(this.sceneId()) && st.summer && st.sunAlt < -3 && ['clear', 'partly'].includes(st.kind))
         ? Array.from({ length: Math.round(28 * I) }, () => ({ x: r() * w, y: h * (0.7 + r() * 0.28), ph: r() * 6.28, sp: 0.3 + r() * 0.6 })) : [];
     }
     newCloud(anywhere) {
@@ -377,6 +496,25 @@
       const ctx = this.fx.getContext('2d'), w = this.w, h = this.h, I = this.intensity();
       ctx.clearRect(0, 0, w, h);
       if (!I) return;
+      const sc0 = SCENES[this.sceneId()];
+      if (sc0 && sc0.wall && !this.photo) {
+        if (sc0.matrix) {   // fallende grüne Zeichen
+          const fs = Math.max(8, Math.round(h / 45)), cols = Math.ceil(w / fs);
+          if (!this.rain || this.rain.length !== cols) this.rain = Array.from({ length: cols }, () => Math.random() * h);
+          ctx.font = fs + 'px monospace';
+          for (let i = 0; i < cols; i++) {
+            const y = this.rain[i];
+            for (let k = 0; k < 14; k++) { ctx.fillStyle = `rgba(80,255,120,${(1 - k / 14) * (k ? 0.35 : 0.9)})`; ctx.fillText(String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)), i * fs, y - k * fs); }
+            this.rain[i] = y > h + 14 * fs ? -Math.random() * h * 0.5 : y + fs * 0.35 * dt * I;
+          }
+        } else {            // ganz leichtes Schimmern
+          const x = w * (0.5 + 0.3 * Math.sin(t / 9000)), y = h * (0.5 + 0.25 * Math.cos(t / 11000));
+          const g = ctx.createRadialGradient(x, y, 0, x, y, h * 0.6);
+          g.addColorStop(0, 'rgba(255,255,255,0.035)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        }
+        return;
+      }
       this.ensureFx(st);
       const windX = clamp(st.wind / 25, 0.15, 2.5);
 
@@ -402,8 +540,37 @@
         }
       }
 
-      // Polarlicht (optional, nur in klaren Nächten)
-      if (this.opts.aurora && this.starAlpha > 0.5) {
+      // Leuchtturm: drehender Lichtkegel
+      if (this.lighthouse && this.light < 0.45) {
+        const { x, y } = this.lighthouse, ang = (t / 2600) % (Math.PI * 2), len = w * 0.5;
+        const dir = Math.cos(ang), a = 0.18 * (1 - this.light * 2) * (0.4 + 0.6 * Math.abs(dir));
+        const g = ctx.createLinearGradient(x, y, x + dir * len, y);
+        g.addColorStop(0, `rgba(255,236,190,${a})`); g.addColorStop(1, 'rgba(255,236,190,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dir * len, y - h * 0.05); ctx.lineTo(x + dir * len, y + h * 0.05); ctx.fill();
+        ctx.fillStyle = `rgba(255,240,200,${0.5 + 0.5 * Math.abs(dir)})`; ctx.beginPath(); ctx.arc(x, y, h * 0.006, 0, 7); ctx.fill();
+      }
+      // Stadt: einzelne Fenster gehen an und aus
+      if (this.windows && this.windows.length && Math.random() < 0.05 * dt) {
+        const wdw = this.windows[Math.floor(Math.random() * this.windows.length)];
+        wdw[3] = !wdw[3];
+      }
+      if (this.windows) for (const wdw of this.windows) if (wdw[3]) { ctx.fillStyle = 'rgba(8,10,12,.9)'; ctx.fillRect(wdw[0], wdw[1], Math.max(1, w * 0.003), Math.max(1, h * 0.005)); }
+
+      // Jahreszeit: fallende Blätter (Herbst) oder Blüten (Frühling), nur bei trockenem Wetter
+      if (this.opts.seasonFx && (st.season === 3 || st.season === 1) && ['clear', 'partly', 'overcast'].includes(st.kind) && this.light > 0.1) {
+        if (!this.leaves) this.leaves = Array.from({ length: Math.round(26 * I) }, () => ({ x: Math.random() * w, y: Math.random() * h, v: 0.3 + Math.random() * 0.6, s: 2 + Math.random() * 3, ph: Math.random() * 6.28, k: Math.random() }));
+        for (const l of this.leaves) {
+          l.y += l.v * dt; l.x += (Math.sin(t / 700 + l.ph) * 0.8 + windX * 0.4) * dt;
+          if (l.y > h) { l.y = -5; l.x = Math.random() * w; }
+          if (l.x > w) l.x -= w;
+          ctx.save(); ctx.translate(l.x, l.y); ctx.rotate(Math.sin(t / 500 + l.ph) * 1.2);
+          ctx.fillStyle = st.season === 3 ? `rgba(${180 + l.k * 50},${80 + l.k * 60},${30},.75)` : `rgba(250,${210 + l.k * 30},${225 + l.k * 20},.75)`;
+          ctx.beginPath(); ctx.ellipse(0, 0, l.s, l.s * 0.55, 0, 0, 7); ctx.fill(); ctx.restore();
+        }
+      } else this.leaves = null;
+
+      // Polarlicht (optional, nur in klaren Nächten; in der Tundra immer)
+      if ((this.opts.aurora || SCENES[this.sceneId()]?.aurora) && this.starAlpha > 0.5) {
         for (let b = 0; b < 3; b++) {
           ctx.beginPath();
           for (let x = 0; x <= w; x += 8) {
@@ -542,6 +709,14 @@
   }
 
   L.Scene = Scene;
+  L.SCENE_IDS = Object.keys(SCENES);
+  /* Vorschaubild einer Landschaft (für die Auswahl in den Einstellungen) */
+  L.sceneThumb = function (id, w = 240, h = 140, opts = {}) {
+    const sc = new Scene(document.createElement('div'), Object.assign({ scene: id, motion: 'aus', static: true, width: w, height: h, weatherFx: false }, opts));
+    sc.setLocation(opts.lat ?? 54.3, opts.lon ?? 10.1);
+    sc.drawStatic(true);
+    return sc.base.toDataURL('image/jpeg', 0.8);
+  };
   L.weatherKind = weatherKind;
   L.moonPhase = moonPhase;
   L.sunAltitude = sunAltitude;

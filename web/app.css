@@ -313,3 +313,60 @@ body.launcher.ready::after { opacity: 0; visibility: hidden; }
 .mirror-step .n { font-family: var(--serif); font-size: calc(2.6 * var(--u)); color: var(--accent); min-width: 1.2em; }
 .mirror-step b { display: block; font-family: var(--serif); font-weight: 400; font-size: calc(2 * var(--u)); }
 .mirror-step span { color: var(--ink-2); font-size: calc(1.35 * var(--u)); line-height: 1.5; }
+
+/* =====================================================================
+ * Designarten (Einstellungen → Aussehen → Designart)
+ * Jede Designart überschreibt nur Farben, Schriften und Formen.
+ * ===================================================================== */
+:root { --sans: 'Noto Sans', 'DejaVu Sans', system-ui, sans-serif; --radius: calc(1.4 * var(--u)); }
+.tile, .bg-choice, .mk { border-radius: var(--radius); }
+
+/* Kino – tiefschwarz, große Plakat-Kacheln, kräftige Schrift */
+body.theme-kino { --accent: #d9463b !important; --glass: rgba(0,0,0,.6); --glass-2: rgba(8,8,8,.92); --radius: calc(.6 * var(--u)); }
+body.theme-kino #bg::after { background: linear-gradient(90deg, rgba(0,0,0,.92), rgba(0,0,0,.7) 45%, rgba(0,0,0,.45)), linear-gradient(0deg, #000 0%, transparent 50%); }
+body.theme-kino .greet, body.theme-kino .hero h1, body.theme-kino .tile .name b, body.theme-kino .setup-card h2, body.theme-kino #profiles h2, body.theme-kino .s-nav h2 { font-family: var(--sans); font-style: normal; font-weight: 800; letter-spacing: -.02em; }
+body.theme-kino .greet { font-size: calc(5 * var(--u)); text-transform: uppercase; }
+body.theme-kino .hero h1 { font-size: calc(6.4 * var(--u)); }
+body.theme-kino .tile:not(.mk):not(.cw) { height: calc(19 * var(--u)); width: calc(32 * var(--u)); }
+body.theme-kino .focused.tile { outline-width: 3px; transform: scale(1.09); }
+body.theme-kino .vclock { border-right-color: rgba(217,70,59,.35); }
+body.theme-kino .vclock .digits { font-family: var(--sans); font-weight: 800; }
+
+/* Glas – hell schimmernde Glasflächen, sehr rund, ruhige Sans-Schrift (wie moderne TV-Boxen) */
+body.theme-glas { --accent: #e9edf2 !important; --radius: calc(2.4 * var(--u)); --dim: .25 !important; }
+body.theme-glas, body.theme-glas .greet small, body.theme-glas .row-label, body.theme-glas .hints { font-family: var(--sans); }
+body.theme-glas .greet, body.theme-glas .hero h1, body.theme-glas .tile .name b, body.theme-glas .setup-card h2, body.theme-glas #profiles h2, body.theme-glas .s-nav h2, body.theme-glas .vclock .digits { font-family: var(--sans); font-style: normal; font-weight: 600; letter-spacing: -.01em; }
+body.theme-glas .tile { background: rgba(255,255,255,.08); backdrop-filter: blur(14px) saturate(1.3); border: 1px solid rgba(255,255,255,.14); }
+body.theme-glas .tile .art { opacity: .75; }
+body.theme-glas .focused.tile { outline-color: rgba(255,255,255,.9); box-shadow: 0 calc(3 * var(--u)) calc(6 * var(--u)) rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.3); transform: scale(1.1) translateY(-.6vh); }
+body.theme-glas .focused.btn, body.theme-glas .focused.icon-btn, body.theme-glas .menu-list button.focused, body.theme-glas .s-nav button.focused { background: #f2f4f7; color: #111; }
+body.theme-glas .vclock { border-right: 0; }
+
+/* Hell – für tagsüber: helles Papier, dunkle Schrift */
+body.theme-hell { --ink: #1b1d1c; --ink-2: rgba(27,29,28,.68); --ink-3: rgba(27,29,28,.45); --line: rgba(27,29,28,.14); --accent: #9a6b2f !important; --glass: rgba(250,247,240,.6); --glass-2: rgba(250,247,240,.92); }
+body.theme-hell, body.theme-hell html { background: #efe9df; color: var(--ink); }
+body.theme-hell #bg::after { background: linear-gradient(90deg, rgba(244,239,230,.94), rgba(244,239,230,.78) 45%, rgba(244,239,230,.55)), linear-gradient(0deg, rgba(244,239,230,.95) 0%, transparent 45%); }
+body.theme-hell .tile .shade { background: linear-gradient(0deg, rgba(10,12,11,.7) 0%, rgba(10,12,11,.05) 60%); }
+body.theme-hell .tile .name b, body.theme-hell .tile .name span, body.theme-hell .tile .num, body.theme-hell .tile .dur { color: #f6f2ea; }
+body.theme-hell .tile.add, body.theme-hell .mk.search { color: var(--ink-2); }
+body.theme-hell .focused.btn, body.theme-hell .focused.icon-btn { color: #fff; }
+body.theme-hell .inp { background: rgba(0,0,0,.04); color: var(--ink); }
+
+/* Neon – dunkles Violett, leuchtende Kanten, Mono-Schrift */
+body.theme-neon { --accent: #7cf3ff !important; --glass: rgba(20,10,40,.5); --glass-2: rgba(16,8,34,.9); --radius: calc(1 * var(--u)); }
+body.theme-neon #bg::after { background: linear-gradient(90deg, rgba(12,4,30,.9), rgba(25,6,50,.65) 50%, rgba(40,8,60,.4)), linear-gradient(0deg, rgba(8,2,20,.9) 0%, transparent 45%); }
+body.theme-neon .greet, body.theme-neon .hero h1, body.theme-neon .tile .name b, body.theme-neon .setup-card h2, body.theme-neon #profiles h2, body.theme-neon .s-nav h2, body.theme-neon .vclock .digits { font-family: var(--mono); font-style: normal; font-weight: 500; letter-spacing: -.02em; }
+body.theme-neon .tile { border: 1px solid rgba(124,243,255,.25); }
+body.theme-neon .focused.tile { outline-color: #7cf3ff; box-shadow: 0 0 calc(2 * var(--u)) rgba(124,243,255,.6), 0 0 calc(6 * var(--u)) rgba(255,90,220,.35); }
+body.theme-neon .vclock .digits .colon, body.theme-neon .hero .kicker { color: #ff5adc; text-shadow: 0 0 12px rgba(255,90,220,.7); }
+body.theme-neon .greet { text-shadow: 0 0 18px rgba(124,243,255,.35); }
+
+/* Vorschau-Karten der Designarten */
+.theme-choices { display: flex; gap: calc(1.4 * var(--u)); flex-wrap: wrap; }
+.theme-choice { width: calc(19 * var(--u)); height: calc(11.5 * var(--u)); border-radius: calc(1.2 * var(--u)); position: relative; overflow: hidden; text-align: left; padding: calc(1.2 * var(--u)); outline: 2px solid transparent; outline-offset: 3px; }
+.theme-choice b { display: block; font-size: calc(2.1 * var(--u)); }
+.theme-choice span { font-size: calc(1.1 * var(--u)); opacity: .7; }
+.theme-choice i { position: absolute; left: calc(1.2 * var(--u)); right: calc(1.2 * var(--u)); bottom: calc(1.2 * var(--u)); height: calc(3 * var(--u)); display: flex; gap: 6%; }
+.theme-choice i em { flex: 1; border-radius: 5px; }
+.theme-choice.sel { outline-color: var(--ink-2); }
+.theme-choice.focused, .theme-choice:hover { outline-color: var(--accent); transform: scale(1.05); }

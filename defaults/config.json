@@ -18,7 +18,8 @@
     "aurora": false,
     "epgUrl": "https://iptv-epg.org/files/epg-de.xml",
     "setupDone": false,
-    "mediathekOn": true
+    "mediathekOn": true,
+    "theme": "lichtung"
   },
   "remote": {
     "pin": ""

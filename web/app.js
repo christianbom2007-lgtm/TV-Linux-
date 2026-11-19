@@ -42,6 +42,14 @@ const PRESETS = [
   { title: 'Twitch', subtitle: 'Livestreams', url: 'https://www.twitch.tv/', hue: 265 },
   { title: 'Spotify', subtitle: 'Musik und Podcasts', url: 'https://open.spotify.com/', hue: 140 },
 ];
+/* Designarten der Oberfläche: id, Name, Beschreibung, Vorschau-Farben [Hintergrund, Text, Kachel, Akzent, Schrift] */
+const THEMES = [
+  ['lichtung', 'Lichtung', 'Serif & Natur', ['#0c110f', '#efe9df', '#2b3a33', '#c8a26b', "'Fraunces', serif"]],
+  ['kino', 'Kino', 'Schwarz & groß', ['#000', '#fff', '#2a1210', '#d9463b', "'Noto Sans', sans-serif"]],
+  ['glas', 'Glas', 'Rund & hell', ['#2a3440', '#fff', 'rgba(255,255,255,.25)', '#e9edf2', "'Noto Sans', sans-serif"]],
+  ['hell', 'Hell', 'Für tagsüber', ['#efe9df', '#1b1d1c', '#3b4a43', '#9a6b2f', "'Fraunces', serif"]],
+  ['neon', 'Neon', 'Leuchtend', ['#12062a', '#e9e6ff', '#2a0f45', '#7cf3ff', "'JB Mono', monospace"]],
+];
 const ACCENTS = ['#c8a26b', '#d9b98c', '#8fb3a0', '#9bb5c9', '#c98f7a', '#b9a3c9', '#e0d3b8', '#a6b86f'];
 const HUES = [8, 28, 48, 100, 150, 200, 225, 265, 300, 340];
 
@@ -61,6 +69,8 @@ function sceneOpts(g) {
 function applyLook() {
   const g = S.state.general;
   document.documentElement.style.setProperty('--accent', g.accent || '#c8a26b');
+  // Designart: eine Klasse am <body> schaltet Farben, Schriften und Formen um
+  THEMES.forEach(([id]) => document.body.classList.toggle('theme-' + id, (g.theme || 'lichtung') === id));
   document.documentElement.style.setProperty('--dim', g.dim ?? 0.55);
   // Lebendiger Hintergrund: eine Szene, die Uhrzeit, Mond und Wetter folgt
   if (!S.scene) {
@@ -296,30 +306,80 @@ function openContinue(c, fromStart) {
   else setTimeout(go, 250);
 }
 
-/* Anleitung: Handy aufs TV bringen */
-function mirrorHelp() {
-  const name = 'Lichtung';
+/* Anleitung: Handy aufs TV bringen (iPhone, Android, YouTube) */
+function mirrorHelp(tab) {
+  tab = tab || 'android';
   const step = (n, t, d) => h('div', { class: 'mirror-step' }, h('span', { class: 'n' }, n), h('div', {}, h('b', {}, t), h('span', {}, d)));
+  const tabs = [['android', 'Android (S25 & Co.)'], ['iphone', 'iPhone & iPad'], ['youtube', 'YouTube-Cast'], ['stream', 'Ohne Entwickler­modus']];
+  const body = h('div', {});
   const yt = S.state.tiles.find((t) => t.url.includes('youtube.com/tv'));
-  openModal([
+  const m = openModal([
     h('h3', {}, 'Handy aufs TV'),
-    h('div', { class: 'lead' }, S.state.airplay ? 'AirPlay-Empfänger ist bereit' : 'AirPlay ist auf diesem Gerät nicht installiert'),
-    h('div', { class: 'mirror-cols' },
-      h('div', {}, h('div', { class: 'mirror-h' }, 'iPhone & iPad – ganzer Bildschirm'),
-        step('1', 'Gleiches WLAN', 'iPhone und Laptop im selben Netz.'),
-        step('2', 'Kontrollzentrum öffnen', 'Oben rechts nach unten wischen.'),
-        step('3', 'Bildschirmsynchronisierung', `„${name}“ antippen – das Bild erscheint sofort hier.`),
-        step('4', 'Beenden', 'Am iPhone „Synchronisierung beenden“. Oder Home-Taste.')),
-      h('div', {}, h('div', { class: 'mirror-h' }, 'YouTube – Android & iPhone'),
-        step('1', 'YouTube-Kachel öffnen', 'In der TV-Ansicht links: Einstellungen.'),
-        step('2', '„Mit Smartphone verbinden“', 'Dort steht ein TV-Code.'),
-        step('3', 'Code in der YouTube-App eingeben', 'App → Profil → Einstellungen → Auf Fernseher ansehen → TV-Code.'),
-        step('4', 'Cast-Symbol tippen', 'Videos laufen dann auf dem TV, das Handy ist die Fernbedienung.'))),
-    h('div', { class: 'lead', style: { marginTop: 'calc(2*var(--u))', textTransform: 'none', letterSpacing: '.02em' } }, 'Links schicken geht immer: Handy-Fernbedienung → Text & Link. Android-Bildschirm spiegeln (Smart View) wird unter Linux leider nicht zuverlässig unterstützt.'),
-    h('div', { class: 'btns' },
-      yt ? h('button', { class: 'btn primary', 'data-nav': true, onclick: () => openTile(yt) }, 'YouTube öffnen') : null,
-      h('button', { class: 'btn', 'data-nav': true, onclick: () => S.modals[S.modals.length - 1].close() }, 'Schließen')),
+    h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))', margin: 'calc(1*var(--u)) 0 calc(2*var(--u))' } }, tabs.map(([id, label]) =>
+      h('button', { class: 'btn' + (id === tab ? ' primary' : ''), 'data-nav': true, onclick: () => { m.close(); setTimeout(() => mirrorHelp(id), 60); } }, label))),
+    body,
   ]);
+  if (tab === 'android') {
+    body.append(
+      h('div', { class: 'lead', style: { textTransform: 'none', letterSpacing: '.02em' } }, S.state.android ? 'Beste Qualität, mit Ton. Einmal koppeln, danach reicht ein Knopfdruck.' : 'scrcpy ist (noch) nicht installiert – Einstellungen → System → Einrichtung bzw. install.sh erneut ausführen.'),
+      h('div', { class: 'mirror-cols' },
+        h('div', {}, h('div', { class: 'mirror-h' }, 'Einmalig am Handy'),
+          step('1', 'Entwickleroptionen an', 'Einstellungen → Telefoninfo → Softwareinformationen → 7× auf „Buildnummer“ tippen.'),
+          step('2', 'Wireless-Debugging an', 'Einstellungen → Entwickleroptionen → Wireless-Debugging einschalten.'),
+          step('3', 'Koppeln', '„Gerät mit QR-Code koppeln“ antippen und den Code vom Fernseher scannen.')),
+        h('div', {}, h('div', { class: 'mirror-h' }, 'Jedes Mal'),
+          step('1', 'Wireless-Debugging an', 'Tipp: Kachel „Wireless-Debugging“ in die Schnelleinstellungen legen.'),
+          step('2', 'Spiegeln starten', 'Hier unten – oder in der Handy-Fernbedienung.'),
+          step('3', 'Beenden', 'Home-Taste am Fernseher oder „Spiegeln beenden“.'))),
+      h('div', { class: 'btns' },
+        h('button', { class: 'btn primary', 'data-nav': true, onclick: async () => { m.close(); L.toast('Suche Handy …'); const r = await api('/api/android/mirror', 'POST', {}); L.toast(r.msg || ''); } }, 'Spiegeln starten'),
+        h('button', { class: 'btn', 'data-nav': true, onclick: () => { m.close(); androidPair(); } }, 'Handy koppeln (QR)')));
+  }
+  if (tab === 'iphone') {
+    body.append(h('div', { class: 'lead', style: { textTransform: 'none', letterSpacing: '.02em' } }, S.state.airplay ? 'AirPlay-Empfänger „Lichtung“ ist bereit.' : 'AirPlay ist auf diesem Gerät nicht installiert.'),
+      step('1', 'Gleiches WLAN', 'iPhone und Laptop im selben Netz.'),
+      step('2', 'Kontrollzentrum', 'Oben rechts nach unten wischen.'),
+      step('3', 'Bildschirmsynchronisierung → „Lichtung“', 'Das Bild erscheint sofort im Vollbild, mit Ton.'),
+      step('4', 'Beenden', 'Am iPhone „Synchronisierung beenden“.'));
+  }
+  if (tab === 'youtube') {
+    body.append(
+      step('1', 'YouTube-Kachel öffnen', 'In der TV-Ansicht links: Einstellungen.'),
+      step('2', '„Mit Smartphone verbinden“', 'Dort steht ein TV-Code.'),
+      step('3', 'Code in der YouTube-App eingeben', 'App → Profil → Einstellungen → Auf Fernseher ansehen → TV-Code.'),
+      step('4', 'Cast-Symbol tippen', 'Videos laufen auf dem TV, das Handy ist die Fernbedienung. Geht mit Android und iPhone.'),
+      yt ? h('div', { class: 'btns' }, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => openTile(yt) }, 'YouTube öffnen')) : null);
+  }
+  if (tab === 'stream') {
+    const inp = h('input', { class: 'inp', 'data-nav': true, placeholder: 'Adresse aus der App, z. B. 192.168.178.23:8080' });
+    body.append(h('div', { class: 'lead', style: { textTransform: 'none', letterSpacing: '.02em' } }, 'Mit der kostenlosen App „ScreenStream“ (Play Store / F-Droid). Kein Entwicklermodus nötig, dafür nur Bild ohne Ton und etwas Verzögerung.'),
+      step('1', 'ScreenStream öffnen', 'Modus „Lokal (MJPEG)“ wählen und Stream starten.'),
+      step('2', 'Adresse ablesen', 'Die App zeigt eine Adresse wie http://192.168.178.23:8080.'),
+      step('3', 'Hier eingeben oder per Handy-Fernbedienung „Link aufs TV“ schicken', ''),
+      h('div', { style: { display: 'flex', gap: '1em', marginTop: '1em' } }, inp, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => { let u = inp.value.trim(); if (!u) return; if (!/^https?:/.test(u)) u = 'http://' + u; location.href = u; } }, 'Öffnen')));
+  }
+}
+
+/* QR-Code zum Koppeln eines Android-Handys (Wireless-Debugging) */
+async function androidPair() {
+  const qrBox = h('div', { class: 'qr', style: { width: 'calc(30*var(--u))', height: 'calc(30*var(--u))' } });
+  const msg = h('div', { class: 'lead', style: { textTransform: 'none', letterSpacing: '.02em', fontSize: 'calc(1.8*var(--u))' } }, 'Starte …');
+  const m = openModal([h('h3', {}, 'Android koppeln'),
+    h('div', { class: 'remote-box' }, qrBox, h('div', {}, msg,
+      h('p', { class: 'setup-lead' }, 'Am Handy: Entwickleroptionen → Wireless-Debugging → „Gerät mit QR-Code koppeln“ → diesen Code scannen. Handy und Laptop müssen im gleichen WLAN sein.'))),
+    h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: () => m.close() }, 'Schließen'))], '');
+  const r = await api('/api/android/pair', 'POST', {});
+  msg.textContent = r.msg;
+  if (r.qr) { try { const qr = qrcode(0, 'M'); qr.addData(r.qr); qr.make(); qrBox.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); } catch (_) {} }
+  const poll = setInterval(async () => {
+    if (!document.contains(msg)) return clearInterval(poll);
+    const st = await api('/api/android').catch(() => null);
+    if (st && st.pair) {
+      msg.textContent = st.pair.msg;
+      if (['fertig', 'fehler', 'abgelaufen'].includes(st.pair.state)) clearInterval(poll);
+      if (st.pair.state === 'fertig') L.toast('Android gekoppelt – Spiegeln jetzt per Knopfdruck');
+    }
+  }, 1500);
 }
 
 /* ============================================================
@@ -590,7 +650,12 @@ function renderSection(keepFocus) {
       break;
     }
     case 'look': {
-      head('Aussehen', 'Hintergrund, Akzentfarbe und wie stark der Hintergrund abgedunkelt wird.');
+      head('Aussehen', 'Designart, Hintergrund, Akzentfarbe und wie stark der Hintergrund abgedunkelt wird.');
+      add(field('Designart', h('div', { class: 'theme-choices' }, THEMES.map(([id, name, sub, c]) =>
+        h('button', { class: 'theme-choice' + ((g.theme || 'lichtung') === id ? ' sel' : ''), 'data-nav': true, style: { background: c[0], color: c[1] },
+          onclick: async () => { await saveGeneral({ theme: id }); renderSection(true); L.toast('Designart: ' + name); } },
+          h('b', { style: { fontFamily: c[4] } }, name), h('span', {}, sub), h('i', {}, h('em', { style: { background: c[2] } }), h('em', { style: { background: c[2], outline: '2px solid ' + c[3] } }), h('em', { style: { background: c[2] } }))))),
+        'Ändert die ganze Oberfläche'));
       const choices = h('div', { class: 'bg-choices' });
       const customs = (S.state.general.customBackgrounds || []);
       [...L.BACKGROUNDS.map((b) => ({ id: b.id, name: b.name })), ...customs.map((u, i) => ({ id: u, name: 'Foto ' + (i + 1) }))].forEach((b) => {

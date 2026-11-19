@@ -42,6 +42,11 @@ async function paintSetup() {
       h('div', { class: 'setup-keys' },
         h('div', {}, h('kbd', {}, '← ↑ → ↓'), ' bewegen'), h('div', {}, h('kbd', {}, 'Enter / OK'), ' auswählen'), h('div', {}, h('kbd', {}, 'Esc / Zurück'), ' einen Schritt zurück')),
       [btn('Los geht’s', next, true)]);
+    // Designart gleich hier wählbar
+    const card = $('#setup .setup-body');
+    card.append(h('div', { class: 'setup-kicker', style: { marginTop: 'calc(2*var(--u))' } }, 'Designart'),
+      h('div', { class: 'theme-choices' }, THEMES.map(([id, name, sub, c]) => h('button', { class: 'theme-choice' + ((S.state.general.theme || 'lichtung') === id ? ' sel' : ''), 'data-nav': true, style: { background: c[0], color: c[1] },
+        onclick: async () => { await api('/api/general', 'POST', { theme: id }); await load(); paintSetup(); } }, h('b', { style: { fontFamily: c[4] } }, name), h('span', {}, sub)))));
   }
   if (step === 'place') {
     const q = h('input', { class: 'inp', 'data-nav': true, placeholder: 'Ort suchen, z. B. Kiel', value: '' });

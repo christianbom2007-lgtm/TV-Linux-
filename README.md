@@ -162,10 +162,18 @@ Der Himmel folgt dem echten Sonnenstand in deinem Ort (Nacht, Blaue Stunde, Aben
 ### Schlaf-Timer
 Taste **T** (oder der Mond-Knopf oben): 15 bis 120 Minuten. Danach wird pausiert und, je nach Einstellung, der Bildschirm ausgeschaltet oder der Laptop heruntergefahren. 60 Sekunden vorher kommt eine Warnung. Eine beliebige Taste verlängert um 15 Minuten.
 
+### Designarten
+Unter *Einstellungen → Aussehen → Designart* (oder am Handy unter Aussehen, oder gleich im Einrichtungsassistenten): **Lichtung** (Serif & Natur), **Kino** (tiefschwarz, große Kacheln), **Glas** (rund und hell schimmernd), **Hell** (für tagsüber), **Neon** (leuchtend). Hintergrund, Wetter-Effekte und Akzentfarbe lassen sich mit jeder Designart kombinieren.
+
 ### Handy spiegeln
+- **Android (z. B. Galaxy S25 Ultra), beste Qualität mit Ton:** über scrcpy und Wireless-Debugging.
+  - *Einmalig:* Entwickleroptionen einschalten (Einstellungen → Telefoninfo → Softwareinformationen → 7× auf „Buildnummer“ tippen). Dann Entwickleroptionen → **Wireless-Debugging** an → „Gerät mit QR-Code koppeln“ → den QR-Code scannen, den die Kachel „Handy spiegeln“ → *Handy koppeln (QR)* zeigt.
+  - *Jedes Mal:* Wireless-Debugging einschalten (geht auch als Schnelleinstellungs-Kachel) → am TV oder in der Handy-Fernbedienung **„Android spiegeln“**. Beenden mit der Home-Taste.
+  - Ehrlich gesagt: Samsung schaltet Wireless-Debugging nach einem Neustart oder WLAN-Wechsel manchmal wieder aus. Dann einfach wieder einschalten, neu koppeln musst du nicht.
+- **Android ohne Entwicklermodus:** App **ScreenStream** (Play Store / F-Droid), Modus „Lokal“. Die angezeigte Adresse in der Kachel eingeben oder per „Link aufs TV“ schicken. Nur Bild, kein Ton, leichte Verzögerung.
 - **iPhone/iPad:** Kontrollzentrum → Bildschirmsynchronisierung → „Lichtung“. Der ganze Bildschirm erscheint im Vollbild (AirPlay über UxPlay).
 - **YouTube (Android & iPhone):** In der YouTube-TV-Ansicht unter Einstellungen „Mit Smartphone verbinden“ den TV-Code anzeigen, in der YouTube-App eingeben, dann per Cast-Symbol Videos schicken.
-- **Android-Bildschirm** (Smart View/Miracast) wird unter Linux nicht zuverlässig unterstützt. Links schickst du stattdessen über die Handy-Fernbedienung.
+- **Samsung Smart View / Miracast** funktioniert unter Linux nicht zuverlässig, deshalb die Wege oben.
 - Die Kachel **„Handy spiegeln“** zeigt diese Anleitung auch am Fernseher.
 
 ### Handy-Fernbedienung

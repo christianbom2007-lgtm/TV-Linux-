@@ -48,6 +48,15 @@ apt-get install -y --no-install-recommends \
 if lspci | grep -qi 'vga.*intel\|display.*intel'; then
   apt-get install -y intel-media-va-driver-non-free i965-va-driver || apt-get install -y intel-media-va-driver i965-va-driver || true
 fi
+# Android spiegeln: offizielle scrcpy-Version (enthält adb und den Handy-Teil)
+if [ ! -x /opt/scrcpy/scrcpy ]; then
+  SCRCPY_URL=$(curl -fsSL https://api.github.com/repos/Genymobile/scrcpy/releases/latest | grep -oE 'https://[^"]+scrcpy-linux-x86_64-v[0-9.]+\.tar\.gz' | head -n1 || true)
+  if [ -n "$SCRCPY_URL" ]; then
+    mkdir -p /opt/scrcpy && curl -fsSL "$SCRCPY_URL" | tar xz -C /opt/scrcpy --strip-components=1 && green "scrcpy installiert: $SCRCPY_URL"
+  else
+    echo "Hinweis: scrcpy konnte nicht geladen werden – Android-Spiegeln später über 'bash install.sh' nachholen."
+  fi
+fi
 # WLAN-Firmware (Intel/Realtek/Atheros sind in Lenovo-Laptops häufig)
 apt-get install -y firmware-iwlwifi firmware-realtek firmware-atheros 2>/dev/null || true
 

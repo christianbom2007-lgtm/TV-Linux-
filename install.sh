@@ -19,12 +19,19 @@ fail()  { printf '\033[1;31mFehler: %s\033[0m\n' "$*"; exit 1; }
 grep -qi 'debian' /etc/os-release || fail "Das ist kein Debian."
 . /etc/os-release
 [ "${VERSION_ID:-0}" -ge 12 ] 2>/dev/null || echo "Hinweis: getestet für Debian 13, gefunden: ${PRETTY_NAME:-?}"
+if ! getent hosts deb.debian.org >/dev/null 2>&1; then
+  for IF in $(ls /sys/class/net | grep -E '^(wl|en|eth)'); do ifup "$IF" >/dev/null 2>&1 || true; done
+  sleep 8
+fi
 getent hosts deb.debian.org >/dev/null 2>&1 || fail "Keine Internetverbindung. Erst Netzwerk einrichten (LAN-Kabel oder WLAN)."
 
 # --------------------------------------------------------------------------
 step "1/9  Paketquellen prüfen (contrib, non-free-firmware für Treiber)"
 # Den Installations-Stick als Paketquelle entfernen (sonst bricht apt ab, sobald der Stick fehlt)
 [ -f /etc/apt/sources.list ] && sed -i -E '/cdrom:/s/^deb/# deb/' /etc/apt/sources.list
+# WLAN beim Start immer einschalten (der Debian-Installer trägt es nur als "allow-hotplug" ein)
+[ -f /etc/network/interfaces ] && sed -i -E 's/^allow-hotplug (wl[^ ]+)/auto \1/' /etc/network/interfaces
+command -v rfkill >/dev/null && rfkill unblock all || true
 # Debian 13 nutzt das neue Format in /etc/apt/sources.list.d/debian.sources
 if [ -f /etc/apt/sources.list.d/debian.sources ]; then
   sed -i -E '/^Components:/ { /non-free-firmware/! s/$/ non-free-firmware/; /contrib/! s/$/ contrib/; /non-free( |$)/! s/$/ non-free/ }' /etc/apt/sources.list.d/debian.sources

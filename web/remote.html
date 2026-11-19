@@ -121,6 +121,9 @@
       <button class="k" data-key="mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9l5 6M21 9l-5 6"/></svg>Stumm</button>
       <button class="k" data-key="volup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 12h4M18 10v4"/></svg>Lauter</button>
     </div>
+    <div class="label">Dieses Handy spiegeln</div>
+    <div class="row"><button class="btn p" id="mirror-start">Android spiegeln</button><button class="btn" id="mirror-stop">Beenden</button></div>
+    <p class="hint">Voraussetzung: einmal gekoppelt (TV → Kachel „Handy spiegeln“) und Wireless-Debugging an. iPhone: Kontrollzentrum → Bildschirmsynchronisierung → „Lichtung“.</p>
     <div class="label">Schlaf-Timer <span id="sleep-state" style="letter-spacing:.1em"></span></div>
     <div class="vol" id="sleep-row">
       <button class="k" data-sleep="30">30 Min.</button><button class="k" data-sleep="60">60 Min.</button><button class="k" data-sleep="90">90 Min.</button>
@@ -162,6 +165,8 @@
 
   <!-- 5 Aussehen -->
   <section class="tab" id="t-look">
+    <div class="label">Designart</div>
+    <div class="row" id="theme-list"></div>
     <div class="label">Hintergrund</div>
     <div class="bgs" id="bg-list"></div>
     <div class="row" style="margin-top:12px"><label class="btn p">Eigenes Foto hochladen<input type="file" accept="image/*" id="bg-file" hidden></label></div>
@@ -261,6 +266,10 @@
       h('button', { class: 'icon', onclick: () => openLink(l.raw || l.url) }, '▶'))));
   }
 
+  /* ---- Android spiegeln ---- */
+  $('#mirror-start').onclick = async () => { buzz(); toast('Suche Handy …'); const r = await api('/api/android/mirror', 'POST', {}).catch((e) => ({ msg: e.message })); toast(r.msg || 'Läuft'); };
+  $('#mirror-stop').onclick = () => { buzz(); api('/api/android/stop', 'POST', {}); toast('Beendet'); };
+
   /* ---- Schlaf-Timer ---- */
   document.querySelectorAll('[data-sleep]').forEach((b) => b.onclick = async () => {
     buzz();
@@ -313,6 +322,10 @@
       h('div', { class: 't' }, h('b', {}, `${String(i + 1).padStart(2, '0')}  ${t.title}`), h('span', {}, t.url)),
       h('button', { class: 'icon', onclick: () => move(i, -1) }, '↑'),
       h('button', { class: 'icon', onclick: () => edit(t) }, '✎'))));
+    // Designarten
+    const tl2 = $('#theme-list'); tl2.innerHTML = '';
+    [['lichtung', 'Lichtung'], ['kino', 'Kino'], ['glas', 'Glas'], ['hell', 'Hell'], ['neon', 'Neon']].forEach(([id, n]) =>
+      tl2.append(h('button', { class: 'btn' + ((STATE.general.theme || 'lichtung') === id ? ' p' : ''), onclick: async () => { await api('/api/general', 'POST', { theme: id }); toast('Designart: ' + n); load(); } }, n)));
     // Hintergründe
     const bl = $('#bg-list'); bl.innerHTML = '';
     const list = [...L.BACKGROUNDS.map((b) => ({ id: b.id, name: b.name })), ...(STATE.general.customBackgrounds || []).map((u, i) => ({ id: u, name: 'Foto ' + (i + 1) }))];

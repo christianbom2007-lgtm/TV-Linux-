@@ -44,6 +44,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import extras  # noqa: E402  (Mediathek, Programmführer, Links)
+import android  # noqa: E402  (Android spiegeln mit scrcpy)
 
 # --------------------------------------------------------------------------
 # Pfade und Grundeinstellungen
@@ -246,6 +247,10 @@ def audio_sinks():
 def go_home():
     """Alle Seiten benachrichtigen: zurück zur Startseite."""
     STATE["lastInput"] = time.time()
+    try:
+        ANDROID.stop_mirror()      # Android-Spiegeln beenden, falls aktiv
+    except NameError:
+        pass
     broadcast("home", url=LAUNCHER_URL)
 
 
@@ -438,15 +443,24 @@ def handle_key(name, value):
     return None
 
 
-def screen(on):
-    """Schaltet den Bildschirm (HDMI) über das Wayland-Protokoll an/aus."""
+def wayland_env():
+    """Umgebung, mit der Programme im Fernsehbild (cage) erscheinen."""
     env = dict(os.environ)
     rt = env.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+    env["XDG_RUNTIME_DIR"] = rt
     if not env.get("WAYLAND_DISPLAY"):
         try:
             env["WAYLAND_DISPLAY"] = sorted(n for n in os.listdir(rt) if re.match(r"^wayland-\d+$", n))[-1]
         except Exception:
-            return False
+            pass
+    return env
+
+
+def screen(on):
+    """Schaltet den Bildschirm (HDMI) über das Wayland-Protokoll an/aus."""
+    env = wayland_env()
+    if not env.get("WAYLAND_DISPLAY"):
+        return False
     try:
         out = subprocess.run(["wlr-randr"], capture_output=True, text=True, env=env, timeout=3).stdout
         outputs = re.findall(r"^(\S+) ", out, re.M)
@@ -505,6 +519,7 @@ def sleep_info():
 
 
 EPG = extras.EPG(DATA_DIR, lambda: CONFIG)
+ANDROID = android.Android(lambda t, **d: broadcast(t, **d), wayland_env)
 
 
 def idle_watcher():
@@ -694,6 +709,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(EPG.now_next(int(qs.get("hours", ["6"])[0])))
         if path == "/api/sleep":
             return self.send_json(sleep_info())
+        if path == "/api/android":
+            return self.send_json(ANDROID.status())
         if path == "/api/links":
             return self.send_json({"recent": CONFIG["remote"].get("recent", [])})
         if path == "/api/netinfo":
@@ -736,6 +753,7 @@ class Handler(BaseHTTPRequestHandler):
             "uinput": bool(UINPUT),
             "sleep": sleep_info(),
             "airplay": bool(shutil.which("uxplay")),
+            "android": ANDROID.available,
             "mediathekRows": CONFIG.get("mediathekRows", []),
         }
 
@@ -892,7 +910,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/general":
                 allowed = {"city", "lat", "lon", "accent", "dim", "screensaverMinutes", "screensaverOnPages",
                            "profileAutoSeconds", "tvUserAgent", "background", "volumeStep", "customBackgrounds",
-                           "motion", "weatherFx", "aurora", "epgUrl", "setupDone", "mediathekOn"}
+                           "motion", "weatherFx", "aurora", "epgUrl", "setupDone", "mediathekOn", "theme"}
                 for k, v in body.items():
                     if k in allowed:
                         CONFIG["general"][k] = v
@@ -992,6 +1010,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/screen":
             ok = screen(bool(body.get("on", True)))
             return self.send_json({"ok": ok})
+
+        if path == "/api/android/pair":
+            return self.send_json(ANDROID.start_pairing() if ANDROID.available else {"state": "fehler", "msg": "scrcpy ist nicht installiert"})
+        if path == "/api/android/mirror":
+            res = {}
+            t = threading.Thread(target=lambda: res.update(ANDROID.start_mirror()))
+            t.start(); t.join(20)
+            return self.send_json(res or {"ok": False, "msg": "Zeitüberschreitung"})
+        if path == "/api/android/stop":
+            ANDROID.stop_mirror()
+            return self.send_json({"ok": True})
 
         if path == "/api/epg/refresh":
             threading.Thread(target=EPG.refresh, daemon=True).start()

@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "general": {
+    "city": "Kiel",
+    "lat": 54.3233,
+    "lon": 10.1228,
+    "accent": "#c8a26b",
+    "dim": 0.55,
+    "screensaverMinutes": 5,
+    "screensaverOnPages": true,
+    "profileAutoSeconds": 2,
+    "tvUserAgent": "Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH)",
+    "background": "nacht",
+    "customBackgrounds": [],
+    "volumeStep": 5,
+    "motion": "voll",
+    "weatherFx": true,
+    "aurora": false,
+    "epgUrl": "https://iptv-epg.org/files/epg-de.xml",
+    "setupDone": false,
+    "mediathekOn": true
+  },
+  "remote": {
+    "pin": ""
+  },
+  "channels": [
+    {
+      "id": "daserste",
+      "name": "Das Erste",
+      "url": "https://daserste-live.ard-mcdn.de/daserste/live/hls/de/master.m3u8",
+      "epg": [
+        "Das Erste",
+        "DasErste",
+        "ARD"
+      ]
+    },
+    {
+      "id": "zdf",
+      "name": "ZDF",
+      "url": "https://zdf-hls-15.akamaized.net/hls/live/2016498/de/high/master.m3u8",
+      "epg": [
+        "ZDF"
+      ]
+    },
+    {
+      "id": "ndrsh",
+      "name": "NDR Schleswig-Holstein",
+      "url": "https://mcdn.ndr.de/ndr/hls/ndr_fs/ndr_sh/master.m3u8",
+      "epg": [
+        "NDR Schleswig-Holstein",
+        "NDR SH",
+        "NDR Fernsehen SH",
+        "NDR"
+      ]
+    },
+    {
+      "id": "ndrhh",
+      "name": "NDR Hamburg",
+      "url": "https://mcdn.ndr.de/ndr/hls/ndr_fs/ndr_hh/master.m3u8",
+      "epg": [
+        "NDR Hamburg",
+        "NDR HH",
+        "NDR"
+      ]
+    },
+    {
+      "id": "tagesschau24",
+      "name": "tagesschau24",
+      "url": "https://tagesschau.akamaized.net/hls/live/2020115/tagesschau/tagesschau_1/master.m3u8",
+      "epg": [
+        "tagesschau24"
+      ]
+    },
+    {
+      "id": "arte",
+      "name": "arte",
+      "url": "https://artesimulcast.akamaized.net/hls/live/2030993/artelive_de/index.m3u8",
+      "epg": [
+        "arte",
+        "ARTE Deutsch"
+      ]
+    },
+    {
+      "id": "3sat",
+      "name": "3sat",
+      "url": "https://zdf-hls-18.akamaized.net/hls/live/2016501/dach/high/master.m3u8",
+      "epg": [
+        "3sat"
+      ]
+    },
+    {
+      "id": "phoenix",
+      "name": "phoenix",
+      "url": "https://zdf-hls-19.akamaized.net/hls/live/2016502/de/high/master.m3u8",
+      "epg": [
+        "phoenix"
+      ]
+    },
+    {
+      "id": "zdfneo",
+      "name": "ZDFneo",
+      "url": "https://zdf-hls-16.akamaized.net/hls/live/2016499/de/high/master.m3u8",
+      "epg": [
+        "ZDFneo",
+        "zdf_neo"
+      ]
+    },
+    {
+      "id": "zdfinfo",
+      "name": "ZDFinfo",
+      "url": "https://zdf-hls-17.akamaized.net/hls/live/2016500/de/high/master.m3u8",
+      "epg": [
+        "ZDFinfo"
+      ]
+    },
+    {
+      "id": "kika",
+      "name": "KiKA",
+      "url": "https://kikageohls.akamaized.net/hls/live/2022693/livetvkika_de/master.m3u8",
+      "epg": [
+        "KiKA",
+        "KIKA"
+      ]
+    },
+    {
+      "id": "alpha",
+      "name": "ARD alpha",
+      "url": "https://mcdn.br.de/br/fs/ard_alpha/hls/de/master.m3u8",
+      "epg": [
+        "ARD alpha",
+        "ARD-alpha",
+        "BR alpha"
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "standard",
+      "name": "Wohnzimmer",
+      "color": "#c8a26b",
+      "pin": null,
+      "isDefault": true,
+      "tiles": [
+        {
+          "id": "t-youtube",
+          "title": "YouTube",
+          "subtitle": "TV-Ansicht, ohne Werbung",
+          "url": "https://www.youtube.com/tv",
+          "tvMode": true,
+          "image": "",
+          "hue": 8
+        },
+        {
+          "id": "t-live",
+          "title": "Live-TV",
+          "subtitle": "ARD, ZDF, NDR und mehr",
+          "url": "lichtung:live",
+          "tvMode": false,
+          "image": "",
+          "hue": 205
+        },
+        {
+          "id": "t-mirror",
+          "title": "Handy spiegeln",
+          "subtitle": "iPhone per AirPlay, YouTube per Code",
+          "url": "lichtung:mirror",
+          "tvMode": false,
+          "image": "",
+          "hue": 265
+        },
+        {
+          "id": "t-ard",
+          "title": "ARD Mediathek",
+          "subtitle": "Filme, Serien, Dokus",
+          "url": "https://www.ardmediathek.de/",
+          "tvMode": false,
+          "image": "",
+          "hue": 220
+        },
+        {
+          "id": "t-zdf",
+          "title": "ZDF Mediathek",
+          "subtitle": "Sendungen auf Abruf",
+          "url": "https://www.zdf.de/",
+          "tvMode": false,
+          "image": "",
+          "hue": 28
+        },
+        {
+          "id": "t-arte",
+          "title": "arte",
+          "subtitle": "Kultur und Dokumentationen",
+          "url": "https://www.arte.tv/de/",
+          "tvMode": false,
+          "image": "",
+          "hue": 18
+        },
+        {
+          "id": "t-ndr",
+          "title": "NDR Mediathek",
+          "subtitle": "Aus dem Norden",
+          "url": "https://www.ndr.de/mediathek/",
+          "tvMode": false,
+          "image": "",
+          "hue": 200
+        }
+      ],
+      "continue": []
+    }
+  ],
+  "mediathekRows": [
+    {
+      "id": "m-neu",
+      "title": "Neu in der Mediathek",
+      "channels": [
+        "ARD",
+        "ZDF",
+        "ARTE.DE",
+        "3Sat",
+        "NDR"
+      ],
+      "topic": "",
+      "text": "",
+      "minMinutes": 25,
+      "on": true
+    },
+    {
+      "id": "m-tagesschau",
+      "title": "tagesschau",
+      "channels": [
+        "ARD"
+      ],
+      "topic": "tagesschau",
+      "text": "20:00",
+      "minMinutes": 10,
+      "on": true
+    },
+    {
+      "id": "m-tatort",
+      "title": "Tatort & Krimi",
+      "channels": [],
+      "topic": "Tatort",
+      "text": "",
+      "minMinutes": 80,
+      "on": true
+    },
+    {
+      "id": "m-doku",
+      "title": "Terra X & Dokus",
+      "channels": [
+        "ZDF"
+      ],
+      "topic": "Terra X",
+      "text": "",
+      "minMinutes": 20,
+      "on": true
+    }
+  ]
+}

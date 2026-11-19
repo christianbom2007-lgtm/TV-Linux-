@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Lichtung
+Description=Bootbildschirm für Lichtung TV
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/lichtung
+ScriptFile=/usr/share/plymouth/themes/lichtung/lichtung.script

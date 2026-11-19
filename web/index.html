@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lichtung TV</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="hide-cursor launcher">
+  <div id="bg"></div>
+
+  <!-- Profilauswahl beim Start -->
+  <section id="profiles" class="view"></section>
+
+  <!-- Startseite -->
+  <section id="home" class="view">
+    <aside class="vclock">
+      <div class="digits" id="clock"></div>
+      <div class="vdate" id="vdate"></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="greet" id="greet"></div>
+        <div class="top-right">
+          <div class="weather-chip" id="weather"></div>
+          <button class="icon-btn" id="btn-sleep" data-nav aria-label="Schlaf-Timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><span id="sleep-left"></span>
+          </button>
+          <button class="icon-btn" id="btn-profile" data-nav></button>
+          <button class="icon-btn" id="btn-settings" data-nav aria-label="Einstellungen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="hero" id="hero">
+        <div class="kicker" id="hero-kicker"></div>
+        <h1 id="hero-title"></h1>
+        <p id="hero-desc"></p>
+      </div>
+
+      <div class="rows" id="rows">
+        <div id="cw-block" class="block" hidden>
+          <div class="row-label">Weiterschauen</div>
+          <div class="row" id="cw-row"></div>
+        </div>
+        <div class="block">
+          <div class="row-label">Kacheln</div>
+          <div class="row" id="tile-row"></div>
+        </div>
+        <div id="media-blocks"></div>
+      </div>
+
+      <div class="hints">
+        <span><kbd>↵</kbd>Öffnen</span>
+        <span><kbd>☰</kbd>/<kbd>M</kbd>Optionen</span>
+        <span><kbd>1–9</kbd>Direkt</span>
+        <span><kbd>⊞</kbd>/<kbd>F1</kbd>Startseite</span>
+        <span><kbd>S</kbd>Einstellungen</span>
+        <span><kbd>T</kbd>Schlaf-Timer</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Einstellungen -->
+  <section id="settings" class="view">
+    <nav class="s-nav" id="s-nav"></nav>
+    <div class="s-body" id="s-body"></div>
+  </section>
+
+  <!-- Einrichtungsassistent -->
+  <section id="setup" class="view"></section>
+
+  <!-- Bildschirmschoner -->
+  <section id="saver" class="view">
+    <div class="bgs" id="saver-bg"></div>
+    <div class="sv" id="saver-content"></div>
+  </section>
+
+  <div id="launching"><div><div class="t" id="launch-title"></div><div class="bar"><i></i></div></div></div>
+
+  <script src="common.js"></script>
+  <script src="bg.js"></script>
+  <script src="scene.js"></script>
+  <script src="vendor/qrcode.js"></script>
+  <script src="app.js"></script>
+  <script src="features.js"></script>
+  <script src="setup.js"></script>
+</body>
+</html>

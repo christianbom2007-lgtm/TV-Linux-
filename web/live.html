@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Live-TV · Lichtung</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background: #000; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .osd { position: fixed; left: calc(5 * var(--u)); bottom: calc(5 * var(--u)); display: flex; align-items: flex-end; gap: calc(3 * var(--u)); padding: calc(2.4 * var(--u)) calc(3.4 * var(--u)); border-radius: calc(2 * var(--u)); background: var(--glass-2); backdrop-filter: blur(18px); border: 1px solid var(--line); transition: opacity .4s var(--ease), transform .4s var(--ease); }
+  .osd.hide { opacity: 0; transform: translateY(20px); }
+  .osd .no { font-family: var(--serif); font-weight: 200; font-size: calc(9 * var(--u)); line-height: .85; color: var(--accent); }
+  .osd .nm { font-family: var(--serif); font-size: calc(4.2 * var(--u)); line-height: 1.1; }
+  .osd .st { font-size: calc(1.3 * var(--u)); letter-spacing: .25em; text-transform: uppercase; color: var(--ink-3); margin-top: calc(.8 * var(--u)); }
+  .osd .clk { font-family: var(--serif); font-size: calc(3 * var(--u)); color: var(--ink-2); margin-left: calc(4 * var(--u)); }
+  .list { position: fixed; left: 0; top: 0; bottom: 0; width: calc(52 * var(--u)); background: linear-gradient(90deg, rgba(5,7,6,.94), rgba(5,7,6,.75)); backdrop-filter: blur(16px); padding: calc(6 * var(--u)) calc(3 * var(--u)); overflow-y: auto; scrollbar-width: none; transform: translateX(-102%); transition: transform .35s var(--ease); }
+  .list.show { transform: none; }
+  .list h2 { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: calc(4.6 * var(--u)); margin: 0 0 calc(2.4 * var(--u)) calc(1.6 * var(--u)); }
+  .list button { display: flex; gap: calc(2 * var(--u)); width: 100%; text-align: left; padding: calc(1.4 * var(--u)) calc(1.6 * var(--u)); border-radius: calc(1 * var(--u)); font-size: calc(2 * var(--u)); }
+  .list button .n { color: var(--ink-3); min-width: 2ch; }
+  .list button.cur { color: var(--accent); }
+  .list button.focused, .list button:hover { background: var(--accent); color: #0b0d0c; }
+  .list button.focused .n { color: rgba(0,0,0,.5); }
+  .msg { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+  .msg div { font-family: var(--serif); font-style: italic; font-size: calc(4 * var(--u)); font-weight: 300; }
+  .msg small { display: block; font-family: var(--mono); font-style: normal; font-size: calc(1.5 * var(--u)); color: var(--ink-3); margin-top: 1em; letter-spacing: .1em; }
+  .osd .epg { margin-left: calc(3 * var(--u)); padding-left: calc(3 * var(--u)); border-left: 1px solid var(--line); min-width: calc(40 * var(--u)); max-width: calc(70 * var(--u)); }
+  .osd .epg .lbl { font-size: calc(1.1 * var(--u)); letter-spacing: .25em; text-transform: uppercase; color: var(--ink-3); }
+  .osd .epg .now { font-family: var(--serif); font-size: calc(2.6 * var(--u)); margin: calc(.4 * var(--u)) 0 calc(1 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .osd .epg .pb { height: 3px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; }
+  .osd .epg .pb i { display: block; height: 100%; background: var(--accent); }
+  .osd .epg .tm { display: flex; justify-content: space-between; font-size: calc(1.2 * var(--u)); color: var(--ink-3); margin-top: calc(.6 * var(--u)); }
+  .osd .epg .next { margin-top: calc(1.2 * var(--u)); font-size: calc(1.5 * var(--u)); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list button { flex-wrap: wrap; }
+  .list button .pn { flex-basis: 100%; padding-left: calc(4.4 * var(--u)); font-size: calc(1.3 * var(--u)); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list button.focused .pn { color: rgba(0,0,0,.6); }
+  .guide { position: fixed; left: calc(53 * var(--u)); top: calc(6 * var(--u)); width: calc(60 * var(--u)); max-height: 80vh; overflow: hidden; padding: calc(3 * var(--u)); border-radius: calc(2 * var(--u)); background: rgba(5,7,6,.85); backdrop-filter: blur(16px); border: 1px solid var(--line); opacity: 0; transition: opacity .3s; }
+  .guide.show { opacity: 1; }
+  .guide h3 { font-family: var(--serif); font-weight: 400; font-size: calc(3 * var(--u)); margin-bottom: calc(2 * var(--u)); }
+  .guide .it { display: grid; grid-template-columns: calc(9 * var(--u)) 1fr; gap: calc(1.4 * var(--u)); padding: calc(1 * var(--u)) 0; border-top: 1px solid var(--line); }
+  .guide .it .t { color: var(--accent); font-size: calc(1.5 * var(--u)); }
+  .guide .it b { display: block; font-family: var(--serif); font-weight: 400; font-size: calc(2 * var(--u)); }
+  .guide .it span { display: block; color: var(--ink-3); font-size: calc(1.25 * var(--u)); margin-top: .3em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .guide .it.cur b { color: var(--accent); }
+  .numentry { position: fixed; right: calc(5 * var(--u)); top: calc(5 * var(--u)); font-family: var(--serif); font-size: calc(8 * var(--u)); color: var(--accent); }
+</style>
+</head>
+<body class="hide-cursor">
+  <video id="v" autoplay playsinline></video>
+  <div class="msg" id="msg"></div>
+  <div class="osd hide" id="osd"></div>
+  <div class="numentry" id="numentry"></div>
+  <nav class="list" id="list"></nav>
+  <div class="guide" id="guide"></div>
+
+  <script src="common.js"></script>
+  <script src="vendor/hls.light.min.js"></script>
+  <script>
+  /* Live-TV: spielt offizielle HLS-Livestreams über hls.js ab.
+   * ↑/↓ oder Bild↑/↓: Sender wechseln · Ziffern: Programmplatz · Enter: Senderliste
+   * Esc/Zurück: Liste schließen bzw. zur Startseite */
+  'use strict';
+  const { $, h, Nav } = L;
+  const video = $('#v');
+  let channels = [], idx = Number(localStorage.getItem('lichtung-channel') || 0), hls = null, osdT, numBuf = '', numT;
+  let epg = { channels: {} };
+
+  /* Programmführer: alle 60 s neu holen */
+  async function loadEpg() { try { epg = await L.api('/api/epg?hours=8'); } catch (_) {} if (!$('#osd').classList.contains('hide')) showOsd(true); }
+  function progs(cid) { const now = Date.now() / 1000; return (epg.channels[cid] || []).filter((p) => p.stop > now); }
+  const hm = (t) => L.timeStr(new Date(t * 1000));
+  function epgHtml(cid) {
+    const [now, next] = progs(cid);
+    if (!now) return '';
+    const t = Date.now() / 1000, pct = Math.max(0, Math.min(100, ((t - now.start) / (now.stop - now.start)) * 100));
+    return `<div class="epg"><div class="lbl">Jetzt</div><div class="now">${L.esc(now.title)}${now.sub ? ' · ' + L.esc(now.sub) : ''}</div>
+      <div class="pb"><i style="width:${pct}%"></i></div><div class="tm"><span>${hm(now.start)}</span><span>noch ${Math.max(1, Math.round((now.stop - t) / 60))} Min.</span><span>${hm(now.stop)}</span></div>
+      ${next ? `<div class="next">Danach ${hm(next.start)} · ${L.esc(next.title)}</div>` : ''}</div>`;
+  }
+  function showGuide(i) {
+    const c = channels[i], list = progs(c.id).slice(0, 6), g = $('#guide');
+    if (!list.length) { g.classList.remove('show'); return; }
+    const now = Date.now() / 1000;
+    g.innerHTML = `<h3>${L.esc(c.name)}</h3>` + list.map((p) => `<div class="it ${p.start <= now ? 'cur' : ''}"><div class="t">${hm(p.start)}</div><div><b>${L.esc(p.title)}</b>${p.desc || p.sub ? `<span>${L.esc(p.sub || p.desc)}</span>` : ''}</div></div>`).join('');
+    g.classList.add('show');
+  }
+
+  function showOsd(quiet) {
+    const c = channels[idx];
+    if (!c) return;
+    $('#osd').innerHTML = `<div class="no">${idx + 1}</div><div><div class="nm">${L.esc(c.name)}</div><div class="st">Live · ${L.esc(L.dateStr())}</div></div>${epgHtml(c.id)}<div class="clk">${L.timeStr()}</div>`;
+    $('#osd').classList.remove('hide');
+    if (quiet) return;
+    clearTimeout(osdT);
+    osdT = setTimeout(() => $('#osd').classList.add('hide'), 5000);
+  }
+
+  function msg(text, small) { $('#msg').innerHTML = text ? `<div>${L.esc(text)}${small ? `<small>${L.esc(small)}</small>` : ''}</div>` : ''; }
+
+  function play(i) {
+    if (!channels.length) return msg('Keine Sender eingerichtet', 'Einstellungen → Live-TV-Sender');
+    idx = (i + channels.length) % channels.length;
+    localStorage.setItem('lichtung-channel', idx);
+    const c = channels[idx];
+    showOsd();
+    msg('');
+    if (hls) { hls.destroy(); hls = null; }
+    if (window.Hls && Hls.isSupported()) {
+      // Niedrige Startqualität → schnelles Umschalten, danach automatisch höher
+      hls = new Hls({ startLevel: -1, capLevelToPlayerSize: true, lowLatencyMode: false, maxBufferLength: 20 });
+      hls.loadSource(c.url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
+        msg(`${c.name} ist gerade nicht erreichbar`, 'Anderen Sender wählen oder Adresse in den Einstellungen prüfen');
+      });
+    } else {
+      video.src = c.url;
+      video.play().catch(() => {});
+    }
+    renderList();
+  }
+
+  function renderList() {
+    const list = $('#list');
+    list.innerHTML = '';
+    list.append(h('h2', {}, 'Sender'));
+    channels.forEach((c, i) => {
+      const now = progs(c.id)[0];
+      const b = h('button', { 'data-nav': true, class: i === idx ? 'cur' : '', onclick: () => { closeList(); play(i); } }, h('span', { class: 'n' }, i + 1), c.name,
+        now ? h('span', { class: 'pn' }, `${hm(now.start)} ${now.title}`) : null);
+      b.addEventListener('navfocus', () => showGuide(i));
+      list.append(b);
+    });
+    list.append(h('button', { 'data-nav': true, onclick: () => (location.href = '/') }, h('span', { class: 'n' }, '←'), 'Startseite'));
+  }
+  const listOpen = () => $('#list').classList.contains('show');
+  function openList() { renderList(); $('#list').classList.add('show'); Nav.scope = $('#list'); Nav.focus($('#list').querySelectorAll('button')[idx], { instant: true }); }
+  function closeList() { $('#list').classList.remove('show'); $('#guide').classList.remove('show'); }
+
+  addEventListener('keydown', (e) => {
+    const k = L.keyName(e);
+    e.preventDefault();
+    if (listOpen()) {
+      if (k === 'up' || k === 'down') Nav.move(k);
+      else if (k === 'ok') Nav.activate();
+      else if (k === 'back' || k === 'backspace' || k === 'left') closeList();
+      return;
+    }
+    if (k === 'up' || k === 'chup') play(idx - 1);
+    else if (k === 'down' || k === 'chdown') play(idx + 1);
+    else if (k === 'ok' || k === 'right' || k === 'menu') openList();
+    else if (k === 'left') showOsd();
+    else if (k === 'back' || k === 'backspace' || k === 'home') location.href = '/';
+    else if (k === 'play') video.paused ? video.play() : video.pause();
+    else if (/^num\d$/.test(k)) {
+      // Mehrstellige Programmplätze: Ziffern sammeln, nach 1,2 s umschalten
+      numBuf += k.slice(3);
+      $('#numentry').textContent = numBuf;
+      clearTimeout(numT);
+      numT = setTimeout(() => { const n = Number(numBuf); numBuf = ''; $('#numentry').textContent = ''; if (n >= 1 && n <= channels.length) play(n - 1); }, 1200);
+    }
+  });
+  addEventListener('mousemove', () => { document.body.classList.remove('hide-cursor'); clearTimeout(window._m); window._m = setTimeout(() => document.body.classList.add('hide-cursor'), 2500); showOsd(); });
+  video.addEventListener('dblclick', () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {})));
+  video.addEventListener('click', () => (listOpen() ? closeList() : openList()));
+
+  L.events((ev) => {
+    if (ev.type === 'volume') L.showVolume(ev);
+    if (ev.type === 'home') location.href = '/';
+    if (ev.type === 'sleep') video.pause();
+    if (ev.type === 'open') location.href = ev.url;
+  });
+  setInterval(loadEpg, 60000);
+  // Läuft ein Sender, darf kein Bildschirmschoner kommen
+  setInterval(() => fetch('/api/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playing: !video.paused }) }).catch(() => {}), 10000);
+
+  L.api('/api/state').then((s) => {
+    document.documentElement.style.setProperty('--accent', s.general.accent);
+    channels = s.channels;
+    play(Math.min(idx, channels.length - 1));
+    loadEpg();
+  });
+  </script>
+</body>
+</html>

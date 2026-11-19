@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Lichtung Player</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background: #000; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .osd { position: fixed; left: 0; right: 0; bottom: 0; padding: calc(10 * var(--u)) calc(6 * var(--u)) calc(5 * var(--u)); background: linear-gradient(0deg, rgba(0,0,0,.85), transparent); transition: opacity .4s var(--ease); }
+  .osd.hide { opacity: 0; }
+  .osd .sub { font-size: calc(1.4 * var(--u)); letter-spacing: .28em; text-transform: uppercase; color: var(--accent); }
+  .osd h1 { font-family: var(--serif); font-weight: 400; font-size: calc(4.6 * var(--u)); margin: calc(.8 * var(--u)) 0 calc(2.6 * var(--u)); max-width: 80%; }
+  .bar { position: relative; height: 4px; background: rgba(255,255,255,.18); border-radius: 4px; }
+  .bar .buf { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.22); border-radius: 4px; }
+  .bar .pos { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
+  .bar .knob { position: absolute; top: 50%; width: calc(1.8 * var(--u)); height: calc(1.8 * var(--u)); border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
+  .times { display: flex; justify-content: space-between; margin-top: calc(1.2 * var(--u)); font-size: calc(1.5 * var(--u)); color: var(--ink-2); }
+  .center { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(12 * var(--u)); height: calc(12 * var(--u)); border-radius: 50%; background: rgba(14,17,16,.6); backdrop-filter: blur(10px); display: grid; place-items: center; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .center.show { opacity: 1; }
+  .center svg { width: 40%; height: 40%; color: var(--ink); }
+  .seek { position: fixed; top: 50%; transform: translateY(-50%); font-family: var(--serif); font-size: calc(4 * var(--u)); color: var(--ink); opacity: 0; transition: opacity .3s; }
+  .seek.show { opacity: 1; }
+  .seek.l { left: calc(12 * var(--u)); } .seek.r { right: calc(12 * var(--u)); }
+  .msg { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; font-family: var(--serif); font-style: italic; font-size: calc(3.6 * var(--u)); }
+  .msg small { display: block; font-family: var(--mono); font-style: normal; font-size: calc(1.5 * var(--u)); color: var(--ink-3); margin-top: 1em; }
+</style>
+</head>
+<body class="hide-cursor">
+  <video id="v" autoplay playsinline></video>
+  <div class="msg" id="msg"></div>
+  <div class="center" id="center"></div>
+  <div class="seek l" id="seekl"></div><div class="seek r" id="seekr"></div>
+  <div class="osd" id="osd">
+    <div class="sub" id="sub"></div>
+    <h1 id="title"></h1>
+    <div class="bar" id="bar"><div class="buf" id="buf"></div><div class="pos" id="pos"></div><div class="knob" id="knob"></div></div>
+    <div class="times"><span id="cur">0:00</span><span id="hint">OK Pause · ← → Spulen · ↑ ↓ 5 Min. · Zurück Startseite</span><span id="tot">0:00</span></div>
+  </div>
+
+  <script src="common.js"></script>
+  <script src="vendor/hls.light.min.js"></script>
+  <script>
+  /* Lichtung-Player für Mediathek-Videos und Links vom Handy.
+   * OK/Leertaste: Pause · ←/→: 10 s (gedrückt halten: schneller) · ↑/↓: 5 Minuten
+   * Zurück/Esc: Startseite. Fortschritt landet automatisch im "Weiterschauen". */
+  'use strict';
+  const { $ } = L;
+  const P = new URLSearchParams(location.search);
+  const src = P.get('src'), key = P.get('key') || src;
+  const v = $('#v');
+  let osdT, seekAcc = 0, seekT, hls = null, resumed = false;
+  $('#title').textContent = P.get('title') || 'Video';
+  $('#sub').textContent = P.get('sub') || '';
+  document.title = (P.get('title') || 'Video') + ' · Lichtung';
+
+  const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  function osd(stay) {
+    $('#osd').classList.remove('hide');
+    clearTimeout(osdT);
+    if (!stay) osdT = setTimeout(() => { if (!v.paused) $('#osd').classList.add('hide'); }, 3500);
+  }
+  function paint() {
+    const d = v.duration || Number(P.get('dur')) || 0;
+    const pct = d ? (v.currentTime / d) * 100 : 0;
+    $('#pos').style.width = pct + '%'; $('#knob').style.left = pct + '%';
+    $('#cur').textContent = fmt(v.currentTime); $('#tot').textContent = fmt(d);
+    if (v.buffered.length && d) $('#buf').style.width = (v.buffered.end(v.buffered.length - 1) / d) * 100 + '%';
+  }
+  const ICON = { play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>', pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>' };
+  function flashIcon(name) { const c = $('#center'); c.innerHTML = ICON[name]; c.classList.add('show'); clearTimeout(c._t); c._t = setTimeout(() => c.classList.remove('show'), 700); }
+  function toggle() { if (v.paused) { v.play(); flashIcon('play'); } else { v.pause(); flashIcon('pause'); osd(true); } }
+  function seek(sec) {
+    seekAcc += sec;
+    v.currentTime = Math.max(0, Math.min((v.duration || 1e9) - 2, v.currentTime + sec));
+    const el = sec < 0 ? $('#seekl') : $('#seekr');
+    el.textContent = (seekAcc > 0 ? '+' : '−') + fmt(Math.abs(seekAcc));
+    el.classList.add('show'); osd();
+    clearTimeout(seekT); seekT = setTimeout(() => { $('#seekl').classList.remove('show'); $('#seekr').classList.remove('show'); seekAcc = 0; }, 900);
+  }
+  function msg(t, small) { $('#msg').innerHTML = t ? `<div>${L.esc(t)}${small ? `<small>${L.esc(small)}</small>` : ''}</div>` : ''; }
+  function leave() { save(); if (history.length > 1) history.back(); else location.href = '/'; }
+
+  // Video laden (HLS über hls.js, sonst direkt)
+  function load(url) {
+    if (/\.m3u8(\?|$)/i.test(url) && window.Hls && Hls.isSupported()) {
+      hls = new Hls({ maxBufferLength: 30 });
+      hls.loadSource(url); hls.attachMedia(v);
+      hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) fallback(); });
+    } else v.src = url;
+  }
+  function fallback() {
+    const sd = P.get('sd');
+    if (sd && v.currentSrc !== sd && !v._triedSd) { v._triedSd = true; const t = v.currentTime; v.src = sd; v.currentTime = t; v.play().catch(() => {}); return; }
+    msg('Video lässt sich nicht abspielen', 'Vielleicht nicht mehr in der Mediathek verfügbar');
+  }
+  v.addEventListener('error', fallback);
+  if (!src) msg('Kein Video angegeben'); else load(src);
+
+  // Fortsetzen an der gemerkten Stelle
+  v.addEventListener('loadedmetadata', async () => {
+    if (resumed || P.get('start') === '0') return;
+    resumed = true;
+    try {
+      const r = await L.api('/api/continue/lookup?url=' + encodeURIComponent(key));
+      if (r.time && r.time > 30 && r.time < v.duration - 30) { v.currentTime = r.time - 3; L.toast('Fortgesetzt bei ' + fmt(r.time)); }
+    } catch (_) {}
+  });
+  v.addEventListener('timeupdate', paint);
+  v.addEventListener('progress', paint);
+  v.addEventListener('waiting', () => msg('…'));
+  v.addEventListener('playing', () => { msg(''); osd(); });
+  v.addEventListener('ended', () => { save(); setTimeout(() => (location.href = '/'), 1500); });
+
+  // Weiterschauen alle 10 Sekunden speichern
+  function save() {
+    if (!v.duration || !isFinite(v.duration) || !key.startsWith('http')) return;
+    fetch('/api/continue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      url: key, player: src, title: P.get('title'), site: (P.get('sub') || '').split(' · ')[0], time: v.currentTime, duration: v.duration }) }).catch(() => {});
+  }
+  setInterval(() => { if (!v.paused) save(); }, 10000);
+  setInterval(() => fetch('/api/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playing: !v.paused }) }).catch(() => {}), 10000);
+  addEventListener('pagehide', save);
+
+  addEventListener('keydown', (e) => {
+    const k = L.keyName(e);
+    if (['ok', 'play', 'left', 'right', 'up', 'down', 'back', 'backspace'].includes(k)) e.preventDefault();
+    if (k === 'ok' || k === 'play') { if (!e.repeat) toggle(); }
+    else if (k === 'left' || k === 'right') seek((k === 'left' ? -1 : 1) * (e.repeat ? 30 : 10));
+    else if (k === 'up' || k === 'chup') seek(300);
+    else if (k === 'down' || k === 'chdown') seek(-300);
+    else if (k === 'back' || k === 'backspace' || k === 'home') leave();
+    else if (e.key === 'f' || e.key === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+    else osd();
+  });
+  addEventListener('mousemove', () => { document.body.classList.remove('hide-cursor'); osd(); clearTimeout(window._m); window._m = setTimeout(() => document.body.classList.add('hide-cursor'), 2500); });
+  v.addEventListener('click', toggle);
+  $('#bar').addEventListener('click', (e) => { const r = e.currentTarget.getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * v.duration; });
+
+  L.events((ev) => {
+    if (ev.type === 'volume') L.showVolume(ev);
+    if (ev.type === 'home') { save(); location.href = '/'; }
+    if (ev.type === 'sleep') { v.pause(); save(); }
+    if (ev.type === 'open') location.href = ev.url;
+  });
+  L.api('/api/state').then((s) => document.documentElement.style.setProperty('--accent', s.general.accent)).catch(() => {});
+  osd();
+  </script>
+</body>
+</html>

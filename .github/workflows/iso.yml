@@ -1,0 +1,52 @@
+# Baut bei jeder Änderung automatisch eine fertige Installations-ISO
+# und stellt sie unter "Releases" zum Download bereit.
+name: ISO bauen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Werkzeuge installieren
+        run: sudo apt-get update && sudo apt-get install -y xorriso
+
+      - name: Tests (Hintergrunddienst)
+        run: python3 tests/test_server.py
+
+      - name: ISO aus offizieller Debian-13-ISO bauen
+        run: bash iso/build-iso.sh
+
+      - name: ISO prüfen
+        run: |
+          cd build
+          xorriso -osirrox on -indev lichtung-tv.iso \
+            -extract /boot/grub/grub.cfg check-grub.cfg \
+            -extract /isolinux/txt.cfg check-txt.cfg \
+            -extract /preseed.cfg check-preseed.cfg \
+            -extract /lichtung/install.sh check-install.sh
+          grep -q "Lichtung TV installieren" check-grub.cfg
+          grep -q "Lichtung TV installieren" check-txt.cfg
+          grep -q "passwd/root-password password" check-preseed.cfg
+          bash -n check-install.sh
+          xorriso -indev lichtung-tv.iso -report_el_torito plain 2>&1 | tee boot-report.txt
+          grep -qi "efi\|uefi\|0xef" boot-report.txt
+          echo "ISO in Ordnung."
+
+      - name: Als Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="iso-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$TAG" build/lichtung-tv.iso build/lichtung-tv.iso.sha256 \
+            --title "Lichtung TV – ISO vom $(TZ=Europe/Berlin date +'%d.%m.%Y %H:%M')" \
+            --notes "Fertige Installations-ISO. Mit balenaEtcher auf einen USB-Stick schreiben, Laptop davon starten (F12), Eintrag **Lichtung TV installieren (automatisch)** wählen. Achtung: Die interne Festplatte wird gelöscht (eine Sicherheitsabfrage kommt vorher). Benutzer root und chris, Passwort 123456."

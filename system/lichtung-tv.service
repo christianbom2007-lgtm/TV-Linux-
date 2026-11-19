@@ -1,0 +1,12 @@
+[Unit]
+Description=Lichtung TV Hintergrunddienst
+After=pipewire.service wireplumber.service
+
+[Service]
+Environment=LICHTUNG_APP=/opt/lichtung-tv
+ExecStart=/usr/bin/python3 /opt/lichtung-tv/server/lichtung_server.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

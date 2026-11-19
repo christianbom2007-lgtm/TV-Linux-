@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d0c">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Lichtung Fernbedienung</title>
+<style>
+  @font-face { font-family: 'Fraunces'; src: url('fonts/fraunces-latin-full-normal.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Fraunces'; src: url('fonts/fraunces-latin-full-italic.woff2') format('woff2'); font-weight: 100 900; font-style: italic; }
+  @font-face { font-family: 'JB Mono'; src: url('fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+  :root { --accent: #c8a26b; --ink: #efe9df; --ink2: rgba(239,233,223,.65); --ink3: rgba(239,233,223,.38); --line: rgba(239,233,223,.12); --card: rgba(255,255,255,.05); }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: radial-gradient(120% 70% at 80% 0%, #1b2422 0%, #0b0d0c 60%); color: var(--ink); font-family: 'JB Mono', monospace; min-height: 100%; }
+  body { padding: env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom)); user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; padding: 22px 20px 10px; }
+  header h1 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 300; font-size: 30px; }
+  header .who { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink3); text-align: right; }
+  header .who b { display: block; color: var(--ink); font-family: 'Fraunces', serif; font-weight: 400; font-size: 16px; letter-spacing: 0; text-transform: none; }
+  .tab { display: none; padding: 8px 20px 20px; }
+  .tab.on { display: block; }
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(11,13,12,.85); backdrop-filter: blur(14px); border-top: 1px solid var(--line); z-index: 5; }
+  nav.tabs button { padding: 8px 0; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button.on { color: var(--accent); }
+  .label { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--ink3); margin: 22px 0 10px; display: flex; gap: 10px; align-items: center; }
+  .label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+  /* Steuerkreuz */
+  .dpad { position: relative; width: min(78vw, 320px); aspect-ratio: 1; margin: 16px auto 8px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid var(--line); }
+  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ink2); }
+  .dpad button:active { color: var(--accent); }
+  .dpad .u, .dpad .d { left: 30%; width: 40%; height: 30%; }
+  .dpad .u { top: 0; } .dpad .d { bottom: 0; }
+  .dpad .l, .dpad .r { top: 30%; height: 40%; width: 30%; }
+  .dpad .l { left: 0; } .dpad .r { right: 0; }
+  .dpad .ok { left: 31%; top: 31%; width: 38%; height: 38%; border-radius: 50%; background: var(--ink); color: #0b0d0c; font-family: 'Fraunces', serif; font-size: 22px; }
+  .dpad .ok:active { background: var(--accent); }
+  .dpad svg { width: 28px; height: 28px; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .k { padding: 16px 0; border-radius: 16px; background: var(--card); border: 1px solid var(--line); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--ink2); }
+  .k svg { width: 22px; height: 22px; color: var(--ink); }
+  .k:active { background: var(--accent); color: #0b0d0c; }
+  .k:active svg { color: #0b0d0c; }
+  .vol { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+
+  /* Touchpad */
+  .pad { position: relative; height: 52vh; border-radius: 22px; background: var(--card); border: 1px solid var(--line); touch-action: none; display: grid; place-items: center; color: var(--ink3); font-size: 12px; letter-spacing: .2em; text-transform: uppercase; overflow: hidden; }
+  .pad .scroll { position: absolute; right: 0; top: 0; bottom: 0; width: 54px; border-left: 1px dashed var(--line); display: grid; place-items: center; writing-mode: vertical-rl; font-size: 10px; }
+  .clicks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+
+  /* Formulare */
+  .inp { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; outline: none; font-size: 15px; }
+  .inp:focus { border-color: var(--accent); }
+  textarea.inp { min-height: 90px; resize: vertical; }
+  .btn { padding: 12px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 13px; letter-spacing: .05em; }
+  .btn.p { background: var(--ink); color: #0b0d0c; border-color: var(--ink); }
+  .btn.d { color: #e59a8a; }
+  .btn:active { background: var(--accent); color: #0b0d0c; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .f { margin-bottom: 14px; }
+  .f > span { display: block; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; }
+  .item { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .item .th { width: 72px; height: 44px; border-radius: 8px; background-size: cover; background-position: center; flex: none; }
+  .item .t { flex: 1; min-width: 0; }
+  .item .t b { display: block; font-family: 'Fraunces', serif; font-weight: 400; font-size: 18px; }
+  .item .t span { display: block; font-size: 11px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--ink2); }
+  .icon:active { background: var(--accent); color: #0b0d0c; }
+  .sheet { position: fixed; inset: 0; z-index: 10; background: rgba(5,7,6,.7); backdrop-filter: blur(10px); display: none; align-items: flex-end; }
+  .sheet.on { display: flex; }
+  .sheet .in { width: 100%; max-height: 92vh; overflow: auto; background: #121614; border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid var(--line); padding: 22px 20px calc(24px + env(safe-area-inset-bottom)); }
+  .sheet h2 { font-family: 'Fraunces', serif; font-weight: 400; font-size: 26px; margin-bottom: 16px; }
+  .toggle { width: 52px; height: 30px; border-radius: 99px; background: rgba(255,255,255,.14); position: relative; flex: none; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); transition: transform .2s; }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { transform: translateX(22px); background: #0b0d0c; }
+  .preview { width: 100%; aspect-ratio: 29/17; border-radius: 14px; background-size: cover; background-position: center; position: relative; overflow: hidden; margin-bottom: 16px; }
+  .preview::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(5,7,6,.8), transparent 60%); }
+  .preview b { position: absolute; left: 14px; bottom: 26px; z-index: 1; font-family: 'Fraunces', serif; font-weight: 400; font-size: 24px; }
+  .preview span { position: absolute; left: 14px; bottom: 10px; z-index: 1; font-size: 11px; color: var(--ink2); }
+  .bgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bgs button { aspect-ratio: 16/9; border-radius: 12px; background-size: cover; background-position: center; border: 2px solid transparent; position: relative; overflow: hidden; }
+  .bgs button.sel { border-color: var(--accent); }
+  .bgs button span { position: absolute; left: 8px; bottom: 6px; font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
+  .lock { position: fixed; inset: 0; z-index: 20; background: #0b0d0c; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 22px; padding: 30px; text-align: center; }
+  .lock h2 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 300; font-size: 34px; }
+  .lock p { color: var(--ink3); font-size: 13px; line-height: 1.6; }
+  .lock input { text-align: center; font-family: 'Fraunces', serif; font-size: 36px; letter-spacing: .4em; width: 220px; }
+  .toast { position: fixed; left: 50%; bottom: 100px; transform: translate(-50%, 30px); opacity: 0; background: #1d2321; border: 1px solid var(--line); padding: 10px 18px; border-radius: 99px; font-size: 13px; transition: .3s; z-index: 30; pointer-events: none; }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+  .hint { color: var(--ink3); font-size: 12px; line-height: 1.6; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <header><h1>Lichtung</h1><div class="who" id="who">Fernbedienung</div></header>
+
+  <!-- 1 Steuerung -->
+  <section class="tab on" id="t-ctrl">
+    <div class="dpad">
+      <button class="u" data-key="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg></button>
+      <button class="l" data-key="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="ok" data-key="ok">OK</button>
+      <button class="r" data-key="right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="d" data-key="down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>
+    <div class="keys">
+      <button class="k" data-key="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Zurück</button>
+      <button class="k" data-key="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Start</button>
+      <button class="k" data-key="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menü</button>
+      <button class="k" data-key="browserback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 6l-6 6 6 6"/></svg>Seite zurück</button>
+      <button class="k" data-key="space"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 5v14M16 5v14"/></svg>Pause</button>
+      <button class="k" data-key="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Vollbild</button>
+    </div>
+    <div class="vol">
+      <button class="k" data-key="voldown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 12h4"/></svg>Leiser</button>
+      <button class="k" data-key="mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9l5 6M21 9l-5 6"/></svg>Stumm</button>
+      <button class="k" data-key="volup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 12h4M18 10v4"/></svg>Lauter</button>
+    </div>
+    <div class="label">Schlaf-Timer <span id="sleep-state" style="letter-spacing:.1em"></span></div>
+    <div class="vol" id="sleep-row">
+      <button class="k" data-sleep="30">30 Min.</button><button class="k" data-sleep="60">60 Min.</button><button class="k" data-sleep="90">90 Min.</button>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn" data-sleep="0">Timer aus</button><button class="btn" id="screen-off">Bildschirm aus</button></div>
+  </section>
+
+  <!-- 2 Touchpad -->
+  <section class="tab" id="t-pad">
+    <div class="pad" id="pad">Wischen = Maus · Tippen = Klick<div class="scroll" id="scroll">Scrollen</div></div>
+    <div class="clicks"><button class="k" id="lclick">Linksklick</button><button class="k" id="rclick">Rechtsklick</button></div>
+  </section>
+
+  <!-- 3 Tippen + Link -->
+  <section class="tab" id="t-text">
+    <div class="label">Link aufs TV</div>
+    <div class="row"><input class="inp grow" id="link" type="url" placeholder="YouTube-, Mediathek- oder Videolink einfügen"><button class="btn p" id="open-link">Öffnen</button></div>
+    <p class="hint">Tipp: Link in WhatsApp lange drücken → Kopieren → hier einfügen. YouTube-Links öffnen in der TV-Ansicht, Videodateien im Lichtung-Player.</p>
+    <div id="recent"></div>
+    <div class="label">Text an den Fernseher</div>
+    <textarea class="inp" id="txt" placeholder="Suchbegriff, Adresse, Passwort …"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn p" id="send-enter">Senden + Enter</button>
+      <button class="btn" id="send">Nur einfügen</button>
+      <button class="btn" data-key="backspace">⌫</button>
+      <button class="btn" data-key="tab">Tab</button>
+    </div>
+    <p class="hint">Vorher auf dem Fernseher ins Suchfeld gehen. Der Text wird direkt eingesetzt – Umlaute und Sonderzeichen funktionieren.</p>
+  </section>
+
+  <!-- 4 Kacheln -->
+  <section class="tab" id="t-tiles">
+    <div class="label">Profil</div>
+    <div id="prof-list"></div>
+    <div class="label">Kacheln</div>
+    <div id="tile-list"></div>
+    <div class="row" style="margin-top:14px"><button class="btn p" id="add-tile">+ Neue Kachel</button></div>
+  </section>
+
+  <!-- 5 Aussehen -->
+  <section class="tab" id="t-look">
+    <div class="label">Hintergrund</div>
+    <div class="bgs" id="bg-list"></div>
+    <div class="row" style="margin-top:12px"><label class="btn p">Eigenes Foto hochladen<input type="file" accept="image/*" id="bg-file" hidden></label></div>
+    <p class="hint">Dunkle Naturfotos wirken am besten. Abdunkeln und Akzentfarbe stellst du am Fernseher unter Einstellungen → Aussehen ein.</p>
+  </section>
+
+  <nav class="tabs">
+    <button data-tab="t-ctrl" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Steuern</button>
+    <button data-tab="t-pad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 3v7"/></svg>Maus</button>
+    <button data-tab="t-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Text & Link</button>
+    <button data-tab="t-tiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 14v6M14 17h6"/></svg>Kacheln</button>
+    <button data-tab="t-look"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18l6-7 4 5 3-3 5 5"/><circle cx="16" cy="7" r="2"/></svg>Aussehen</button>
+  </nav>
+
+  <div class="sheet" id="sheet"><div class="in" id="sheet-in"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="bg.js?nocommon" defer></script>
+  <script>
+  'use strict';
+  /* Mini-Helfer (die Fernbedienung lädt common.js nicht, um schlank zu bleiben) */
+  window.L = window.L || {};
+  L.h = function (tag, attrs = {}, ...ch) { const el = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) { if (v == null || v === false) continue; if (k === 'class') el.className = v; else if (k === 'style') Object.assign(el.style, v); else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v); } for (const c of ch.flat(Infinity)) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c)); return el; };
+  const $ = (s) => document.querySelector(s), h = L.h;
+  let PIN = location.hash.slice(1) || localStorage.getItem('lichtung-pin') || '';
+  let STATE = null;
+
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2200); }
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Remote-Pin': PIN }, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { askCode(); throw new Error('Code'); }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Fehler');
+    return d;
+  }
+  const buzz = () => navigator.vibrate && navigator.vibrate(12);
+
+  /* ---- Anmelden mit dem 4-stelligen Code vom Fernseher ---- */
+  function askCode() {
+    if ($('.lock')) return;
+    const inp = h('input', { class: 'inp', inputmode: 'numeric', maxlength: 4, placeholder: '····' });
+    const box = h('div', { class: 'lock' }, h('h2', {}, 'Verbinden'), h('p', {}, 'Code vom Fernseher eingeben:', h('br'), 'Einstellungen → Handy-Fernbedienung'), inp,
+      h('button', { class: 'btn p', onclick: async () => { PIN = inp.value; try { await api('/api/state'); localStorage.setItem('lichtung-pin', PIN); box.remove(); init(); } catch (_) { toast('Code falsch'); } } }, 'Verbinden'));
+    document.body.append(box);
+    setTimeout(() => inp.focus(), 100);
+  }
+
+  /* ---- Tabs ---- */
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === b.dataset.tab));
+    if (b.dataset.tab === 't-tiles' || b.dataset.tab === 't-look') load();
+    if (b.dataset.tab === 't-text') loadLinks();
+  });
+
+  /* ---- Tasten (gedrückt halten wiederholt) ---- */
+  document.querySelectorAll('[data-key]').forEach((b) => {
+    let rep;
+    const send = () => { buzz(); api('/api/key', 'POST', { key: b.dataset.key }).catch(() => {}); };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); send(); if (['up', 'down', 'left', 'right', 'volup', 'voldown', 'backspace'].includes(b.dataset.key)) rep = setTimeout(function r() { send(); rep = setTimeout(r, 120); }, 450); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, () => clearTimeout(rep)));
+  });
+
+  /* ---- Touchpad ---- */
+  (function () {
+    const pad = $('#pad'), sc = $('#scroll');
+    let last = null, moved = 0, acc = { dx: 0, dy: 0 }, startT = 0, scrollLast = null;
+    setInterval(() => { if (acc.dx || acc.dy) { const d = acc; acc = { dx: 0, dy: 0 }; api('/api/mouse', 'POST', d).catch(() => {}); } }, 33);
+    pad.addEventListener('pointerdown', (e) => { if (e.target === sc) return; pad.setPointerCapture(e.pointerId); last = { x: e.clientX, y: e.clientY }; moved = 0; startT = Date.now(); });
+    pad.addEventListener('pointermove', (e) => {
+      if (!last) return;
+      const dx = e.clientX - last.x, dy = e.clientY - last.y; last = { x: e.clientX, y: e.clientY };
+      const speed = Math.hypot(dx, dy), f = speed > 12 ? 3.2 : speed > 5 ? 2.2 : 1.4; // Beschleunigung
+      acc.dx += Math.round(dx * f); acc.dy += Math.round(dy * f); moved += speed;
+    });
+    pad.addEventListener('pointerup', () => { if (last && moved < 8 && Date.now() - startT < 300) { buzz(); api('/api/mouse', 'POST', { click: 'left' }); } last = null; });
+    sc.addEventListener('pointerdown', (e) => { e.stopPropagation(); sc.setPointerCapture(e.pointerId); scrollLast = e.clientY; });
+    sc.addEventListener('pointermove', (e) => { if (scrollLast == null) return; const d = e.clientY - scrollLast; if (Math.abs(d) > 14) { api('/api/mouse', 'POST', { scroll: d > 0 ? -1 : 1 }); scrollLast = e.clientY; } });
+    sc.addEventListener('pointerup', () => (scrollLast = null));
+    $('#lclick').onclick = () => { buzz(); api('/api/mouse', 'POST', { click: 'left' }); };
+    $('#rclick').onclick = () => { buzz(); api('/api/mouse', 'POST', { click: 'right' }); };
+  })();
+
+  /* ---- Link aufs TV ---- */
+  async function openLink(url) {
+    try { const r = await api('/api/open', 'POST', { url }); toast('Öffnet: ' + (r.label || 'Link')); $('#link').value = ''; loadLinks(); }
+    catch (e) { toast(e.message); }
+  }
+  $('#open-link').onclick = () => openLink($('#link').value);
+  $('#link').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLink($('#link').value); });
+  async function loadLinks() {
+    const r = await api('/api/links').catch(() => ({ recent: [] }));
+    const box = $('#recent'); box.innerHTML = '';
+    if (r.recent.length) box.append(h('div', { class: 'label' }, 'Zuletzt geschickt'));
+    r.recent.forEach((l) => box.append(h('div', { class: 'item' },
+      h('div', { class: 't' }, h('b', {}, l.label || 'Link'), h('span', {}, l.raw || l.url)),
+      h('button', { class: 'icon', onclick: () => openLink(l.raw || l.url) }, '▶'))));
+  }
+
+  /* ---- Schlaf-Timer ---- */
+  document.querySelectorAll('[data-sleep]').forEach((b) => b.onclick = async () => {
+    buzz();
+    const m = Number(b.dataset.sleep);
+    const r = await api('/api/sleep', 'POST', m ? { minutes: m, action: 'screen' } : { cancel: true });
+    paintSleep(r); toast(m ? `Schlaf-Timer: ${m} Min.` : 'Schlaf-Timer aus');
+  });
+  $('#screen-off').onclick = () => { buzz(); api('/api/screen', 'POST', { on: false }); toast('Bildschirm aus – beliebige Taste schaltet ihn wieder an'); };
+  function paintSleep(r) { $('#sleep-state').textContent = r && r.active ? `· noch ${Math.ceil(r.left / 60)} Min.` : ''; }
+
+  /* ---- Text ---- */
+  $('#send').onclick = () => { api('/api/text', 'POST', { text: $('#txt').value }); toast('Gesendet'); };
+  $('#send-enter').onclick = () => { api('/api/text', 'POST', { text: $('#txt').value, enter: true }); $('#txt').value = ''; toast('Gesendet'); };
+
+  /* ---- Bilder: vor dem Hochladen verkleinern (spart WLAN und Speicher) ---- */
+  function shrink(file, max = 1920) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = rej;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  async function upload(file, max) { toast('Lade hoch …'); const data = await shrink(file, max); return (await api('/api/upload', 'POST', { data })).url; }
+
+  /* ---- Kacheln & Profile ---- */
+  async function load() {
+    STATE = await api('/api/state');
+    document.documentElement.style.setProperty('--accent', STATE.general.accent);
+    const p = STATE.profiles.find((x) => x.id === STATE.active);
+    $('#who').innerHTML = ''; $('#who').append('Profil', h('b', {}, p ? p.name : ''));
+    // Profile
+    const pl = $('#prof-list'); pl.innerHTML = '';
+    STATE.profiles.forEach((pr) => pl.append(h('div', { class: 'item' },
+      h('div', { class: 'th', style: { background: pr.color, width: '44px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontFamily: 'Fraunces,serif', fontSize: '20px', color: '#0b0d0c' } }, pr.name[0].toUpperCase()),
+      h('div', { class: 't' }, h('b', {}, pr.name), h('span', {}, [pr.id === STATE.active ? 'aktiv' : '', pr.hasPin ? 'mit PIN' : '', pr.isDefault ? 'Standard' : ''].filter(Boolean).join(' · '))),
+      pr.id !== STATE.active ? h('button', { class: 'btn', onclick: async () => {
+        let pin = null; if (pr.hasPin) { pin = prompt('PIN für ' + pr.name); if (pin == null) return; }
+        try { await api('/api/profile/select', 'POST', { id: pr.id, pin }); toast('Gewechselt'); load(); } catch (e) { toast(e.message); }
+      } }, 'Wechseln') : null)));
+    // Kacheln
+    const tl = $('#tile-list'); tl.innerHTML = '';
+    STATE.tiles.forEach((t, i) => tl.append(h('div', { class: 'item' },
+      h('div', { class: 'th', style: { backgroundImage: t.image ? `url("${t.image}")` : `linear-gradient(135deg, hsl(${t.hue} 32% 30%), hsl(${(t.hue + 25) % 360} 28% 12%))` } }),
+      h('div', { class: 't' }, h('b', {}, `${String(i + 1).padStart(2, '0')}  ${t.title}`), h('span', {}, t.url)),
+      h('button', { class: 'icon', onclick: () => move(i, -1) }, '↑'),
+      h('button', { class: 'icon', onclick: () => edit(t) }, '✎'))));
+    // Hintergründe
+    const bl = $('#bg-list'); bl.innerHTML = '';
+    const list = [...L.BACKGROUNDS.map((b) => ({ id: b.id, name: b.name })), ...(STATE.general.customBackgrounds || []).map((u, i) => ({ id: u, name: 'Foto ' + (i + 1) }))];
+    list.forEach((b) => {
+      const el = h('button', { class: STATE.general.background === b.id ? 'sel' : '', onclick: async () => { await api('/api/general', 'POST', { background: b.id }); toast('Hintergrund gesetzt'); load(); } }, h('span', {}, b.name));
+      if (b.id.startsWith('/')) el.style.backgroundImage = `url("${b.id}")`;
+      else { const c = document.createElement('canvas'); c.width = 240; c.height = 135; L.paintScene(c.getContext('2d'), 240, 135, b.id); el.style.backgroundImage = `url(${c.toDataURL()})`; }
+      if (b.id.startsWith('/')) el.addEventListener('contextmenu', async (e) => { e.preventDefault(); if (!confirm('Foto entfernen?')) return; await api('/api/general', 'POST', { customBackgrounds: STATE.general.customBackgrounds.filter((x) => x !== b.id), background: STATE.general.background === b.id ? 'nacht' : STATE.general.background }); load(); });
+      bl.append(el);
+    });
+  }
+  async function move(i, dir) {
+    const ids = STATE.tiles.map((t) => t.id), j = i + dir; if (j < 0) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]]; await api('/api/tiles/order', 'POST', { ids }); load();
+  }
+  $('#add-tile').onclick = () => edit(null);
+  $('#bg-file').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const url = await upload(f, 2560);
+    await api('/api/general', 'POST', { customBackgrounds: [...(STATE.general.customBackgrounds || []), url], background: url });
+    toast('Hintergrund gesetzt'); load();
+  };
+
+  function edit(t) {
+    const d = Object.assign({ title: '', subtitle: '', description: '', url: 'https://', tvMode: false, image: '', hue: 200 }, t || {});
+    const sheet = $('#sheet'), inn = $('#sheet-in');
+    const prev = h('div', { class: 'preview' });
+    const paint = () => { prev.style.backgroundImage = d.image ? `url("${d.image}")` : `linear-gradient(135deg, hsl(${d.hue} 32% 30%), hsl(${(d.hue + 25) % 360} 28% 12%))`; prev.innerHTML = ''; prev.append(h('b', {}, d.title || 'Name'), h('span', {}, d.subtitle || '')); };
+    const f = (label, el) => h('label', { class: 'f' }, h('span', {}, label), el);
+    const inp = (k, ph, type = 'text') => { const el = h('input', { class: 'inp', type, placeholder: ph, value: d[k] || '' }); el.oninput = () => { d[k] = el.value; paint(); }; return el; };
+    const ta = h('textarea', { class: 'inp', placeholder: 'Wird am Fernseher angezeigt, wenn die Kachel ausgewählt ist' }); ta.value = d.description || ''; ta.oninput = () => (d.description = ta.value);
+    const tv = h('button', { class: 'toggle' + (d.tvMode ? ' on' : ''), onclick: (e) => { e.preventDefault(); d.tvMode = !d.tvMode; tv.classList.toggle('on', d.tvMode); } });
+    const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
+    file.onchange = async () => { if (!file.files[0]) return; d.image = await upload(file.files[0], 1280); paint(); toast('Bild hinzugefügt'); };
+    inn.innerHTML = '';
+    inn.append(h('h2', {}, t ? 'Kachel bearbeiten' : 'Neue Kachel'), prev,
+      f('Name', inp('title', 'z. B. ARD Mediathek')),
+      f('Untertitel', inp('subtitle', 'Kurzer Text unter dem Namen')),
+      f('Beschreibung', ta),
+      f('Adresse', inp('url', 'https://…', 'url')),
+      h('div', { class: 'row f' }, h('div', { class: 'grow' }, h('div', { style: { fontSize: '14px' } }, 'TV-Ansicht'), h('div', { class: 'hint', style: { margin: 0 } }, 'Für youtube.com/tv')), tv),
+      h('div', { class: 'f' }, h('span', { style: { display: 'block', fontSize: '11px', letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '6px' } }, 'Bild'),
+        h('div', { class: 'row' }, h('label', { class: 'btn p' }, 'Foto wählen', file), h('button', { class: 'btn', onclick: () => { d.image = ''; paint(); } }, 'Entfernen'))),
+      h('div', { class: 'row', style: { marginTop: '18px' } },
+        h('button', { class: 'btn p', onclick: async () => { await api('/api/tiles', 'POST', { tile: d }); sheet.classList.remove('on'); toast('Gespeichert'); load(); } }, 'Speichern'),
+        t ? h('button', { class: 'btn d', onclick: async () => { if (!confirm('„' + d.title + '“ löschen?')) return; await api('/api/tiles/' + t.id, 'DELETE'); sheet.classList.remove('on'); load(); } }, 'Löschen') : null,
+        h('button', { class: 'btn', onclick: () => sheet.classList.remove('on') }, 'Abbrechen')));
+    paint();
+    sheet.classList.add('on');
+  }
+  $('#sheet').onclick = (e) => { if (e.target.id === 'sheet') e.currentTarget.classList.remove('on'); };
+
+  async function init() { try { await load(); paintSleep(STATE.sleep); } catch (_) {} }
+  if (location.hash.length > 1) { localStorage.setItem('lichtung-pin', PIN); history.replaceState(null, '', location.pathname); }
+  window.addEventListener('load', init);
+  </script>
+</body>
+</html>

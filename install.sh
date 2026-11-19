@@ -19,8 +19,10 @@ fail()  { printf '\033[1;31mFehler: %s\033[0m\n' "$*"; exit 1; }
 grep -qi 'debian' /etc/os-release || fail "Das ist kein Debian."
 . /etc/os-release
 [ "${VERSION_ID:-0}" -ge 12 ] 2>/dev/null || echo "Hinweis: getestet für Debian 13, gefunden: ${PRETTY_NAME:-?}"
+# Flugmodus (RF-kill) aufheben – auch ohne das Programm "rfkill"
+for f in /sys/class/rfkill/*/soft; do [ -w "$f" ] && echo 0 > "$f" 2>/dev/null || true; done
 if ! getent hosts deb.debian.org >/dev/null 2>&1; then
-  for IF in $(ls /sys/class/net | grep -E '^(wl|en|eth)'); do ifup "$IF" >/dev/null 2>&1 || true; done
+  for IF in $(ls /sys/class/net | grep -E '^(wl|en|eth)'); do ifdown --force "$IF" >/dev/null 2>&1; ifup "$IF" >/dev/null 2>&1 || true; done
   sleep 8
 fi
 getent hosts deb.debian.org >/dev/null 2>&1 || fail "Keine Internetverbindung. Erst Netzwerk einrichten (LAN-Kabel oder WLAN)."
@@ -50,7 +52,7 @@ apt-get install -y --no-install-recommends \
   polkitd libpam-systemd curl zip ca-certificates pciutils \
   fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-color-emoji \
   mesa-va-drivers mesa-vulkan-drivers libgl1-mesa-dri vainfo \
-  network-manager unattended-upgrades wlr-randr plymouth plymouth-themes \
+  network-manager rfkill unattended-upgrades wlr-randr plymouth plymouth-themes \
   uxplay avahi-daemon gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-pipewire \
   firmware-misc-nonfree firmware-linux-free
 # Grafiktreiber für Intel (Videobeschleunigung) – nur wenn Intel-Grafik vorhanden

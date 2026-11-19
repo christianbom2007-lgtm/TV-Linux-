@@ -1,0 +1,33 @@
+# Lichtung TV – Terminal-Einstellungen (wird aus ~/.bashrc geladen)
+case $- in *i*) ;; *) return ;; esac        # nur in interaktiven Terminals
+[ "$(tty)" = "/dev/tty1" ] && return          # Konsole 1 = Fernseh-Oberfläche, keine Begrüßung
+
+# Eingabezeile im Lichtung-Stil:  tv@lichtung ~/Ordner ›
+PS1='\[\e[38;2;200;162;107m\]\u@\h\[\e[0m\] \[\e[38;2;143;179;160m\]\w\[\e[0m\] › '
+export EDITOR=nano
+HISTSIZE=5000
+HISTCONTROL=ignoredups
+
+# Kurze Befehle
+alias ll='ls -lah --color=auto'
+alias ls='ls --color=auto'
+alias ..='cd ..'
+alias status='lichtung status'
+alias ueberwachung='btop'
+alias speicher='ncdu ~'
+alias logs='lichtung logs'
+
+# Begrüßung
+if command -v fastfetch >/dev/null && [ -z "$LICHTUNG_QUIET" ]; then
+  fastfetch --logo none --structure "OS:Kernel:Uptime:CPU:Memory:Disk:LocalIp" 2>/dev/null
+fi
+echo -e "
+  \e[38;2;200;162;107mLichtung · Terminal\e[0m   (Windows-Taste = zurück zum Fernseher)
+
+  lichtung            Menü mit allen Funktionen
+  lichtung status     Was läuft? Temperatur, Speicher, Dienste
+  lichtung suchen X   Programm im App-Store suchen   ·  lichtung installieren X
+  btop                Systemüberwachung (q = beenden)
+  lichtung update     Lichtung aktualisieren         ·  lichtung logs   Protokolle
+  su -                Root werden (für apt install …)
+"

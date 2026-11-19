@@ -25,22 +25,30 @@ const S = {
 
 /* Vorlagen für neue Kacheln */
 const PRESETS = [
-  { title: 'YouTube', subtitle: 'TV-Ansicht, ohne Werbung', url: 'https://www.youtube.com/tv', tvMode: true, hue: 8 },
-  { title: 'YouTube (normal)', subtitle: 'Klassische Ansicht', url: 'https://www.youtube.com/', tvMode: false, hue: 0 },
-  { title: 'Live-TV', subtitle: 'ARD, ZDF, NDR und mehr', url: 'lichtung:live', tvMode: false, hue: 205 },
-  { title: 'Handy spiegeln', subtitle: 'iPhone per AirPlay, YouTube per Code', url: 'lichtung:mirror', tvMode: false, hue: 265 },
+  { title: 'YouTube', subtitle: 'Kino-Fenster in Brave, ohne Werbung', url: 'https://www.youtube.com/', open: 'kino', size: 'gross', hue: 8 },
+  { title: 'Brave', subtitle: 'Normaler Browser · suchen & surfen', url: 'lichtung:browser', open: 'tab', hue: 20 },
+  { title: 'Live-TV', subtitle: 'ARD, ZDF, NDR und mehr', url: 'lichtung:live', open: 'lichtung', hue: 205 },
+  { title: 'Handy spiegeln', subtitle: 'iPhone, Android, Samsung', url: 'lichtung:mirror', open: 'lichtung', hue: 265 },
+  { title: 'Programme', subtitle: 'Terminal, App-Store, Spiele', url: 'lichtung:apps', open: 'lichtung', hue: 150 },
+  { title: 'Musikbox', subtitle: 'Handy-Musik über den Fernseher', url: 'lichtung:music', open: 'lichtung', hue: 300 },
+  { title: 'Ambiente', subtitle: 'Kaminfeuer, Regen, Aquarium, Nordlicht', url: 'lichtung:ambient', open: 'lichtung', hue: 18 },
   { title: 'ARD Mediathek', subtitle: 'Filme, Serien, Dokus', url: 'https://www.ardmediathek.de/', hue: 220 },
   { title: 'ZDF Mediathek', subtitle: 'Sendungen auf Abruf', url: 'https://www.zdf.de/', hue: 28 },
   { title: 'arte', subtitle: 'Kultur und Dokus', url: 'https://www.arte.tv/de/', hue: 18 },
   { title: '3sat', subtitle: 'Mediathek', url: 'https://www.3sat.de/', hue: 340 },
   { title: 'NDR Mediathek', subtitle: 'Aus dem Norden', url: 'https://www.ndr.de/mediathek/', hue: 200 },
-  { title: 'Netflix', subtitle: 'Serien und Filme', url: 'https://www.netflix.com/browse', hue: 356 },
-  { title: 'Prime Video', subtitle: 'Amazon', url: 'https://www.amazon.de/gp/video/storefront', hue: 195 },
-  { title: 'Disney+', subtitle: 'Filme und Serien', url: 'https://www.disneyplus.com/', hue: 230 },
+  { title: 'Netflix', subtitle: 'Serien und Filme', url: 'https://www.netflix.com/browse', open: 'kino', hue: 356 },
+  { title: 'Prime Video', subtitle: 'Amazon', url: 'https://www.amazon.de/gp/video/storefront', open: 'kino', hue: 195 },
+  { title: 'Disney+', subtitle: 'Filme und Serien', url: 'https://www.disneyplus.com/', open: 'kino', hue: 230 },
   { title: 'Joyn', subtitle: 'Live und auf Abruf', url: 'https://www.joyn.de/', hue: 280 },
   { title: 'RTL+', subtitle: 'Mediathek', url: 'https://plus.rtl.de/', hue: 10 },
-  { title: 'Twitch', subtitle: 'Livestreams', url: 'https://www.twitch.tv/', hue: 265 },
+  { title: 'Twitch', subtitle: 'Livestreams', url: 'https://www.twitch.tv/', open: 'kino', hue: 265 },
   { title: 'Spotify', subtitle: 'Musik und Podcasts', url: 'https://open.spotify.com/', hue: 140 },
+  { title: 'Terminal', subtitle: 'Befehle & Programme installieren', url: 'app:terminal', open: 'lichtung', hue: 100 },
+  { title: 'App-Store', subtitle: 'Programme aus Flathub', url: 'app:store', open: 'lichtung', hue: 48 },
+  { title: 'Retro-Spiele', subtitle: 'RetroArch mit Gamepad', url: 'app:retro', open: 'lichtung', hue: 300 },
+  { title: 'Galaxy Book', subtitle: 'PC-Bildschirm aufs TV (Moonlight)', url: 'app:galaxy', open: 'lichtung', hue: 225 },
+  { title: 'Zufallsdoku', subtitle: 'Überrasch mich', url: 'lichtung:doku', open: 'lichtung', hue: 100 },
 ];
 /* Designarten der Oberfläche: id, Name, Beschreibung, Vorschau-Farben [Hintergrund, Text, Kachel, Akzent, Schrift] */
 const THEMES = [
@@ -49,6 +57,15 @@ const THEMES = [
   ['glas', 'Glas', 'Rund & hell', ['#2a3440', '#fff', 'rgba(255,255,255,.25)', '#e9edf2', "'Noto Sans', sans-serif"]],
   ['hell', 'Hell', 'Für tagsüber', ['#efe9df', '#1b1d1c', '#3b4a43', '#9a6b2f', "'Fraunces', serif"]],
   ['neon', 'Neon', 'Leuchtend', ['#12062a', '#e9e6ff', '#2a0f45', '#7cf3ff', "'JB Mono', monospace"]],
+  ['cupertino', 'Cupertino', 'Wie Apple TV', ['#12142e', '#fff', 'rgba(255,255,255,.18)', '#ffffff', "'Noto Sans', sans-serif"]],
+  ['one', 'One', 'Wie Samsung TV', ['#060c1c', '#eef3ff', '#14254a', '#3e8bff', "'Noto Sans', sans-serif"]],
+  ['flamme', 'Flamme', 'Wie Fire TV', ['#0a1220', '#f4f6fa', '#16243a', '#ff9900', "'Noto Sans', sans-serif"]],
+  ['konsole', 'Konsole', 'Wie Xbox', ['#050605', '#fff', '#1c2a1e', '#3fd65b', "'Noto Sans', sans-serif"]],
+  ['fenster', 'Fenster', 'Wie Windows 11', ['#0b1226', '#fff', 'rgba(255,255,255,.08)', '#60a5fa', "'Noto Sans', sans-serif"]],
+  ['adwaita', 'Adwaita', 'Wie GNOME', ['#1e1f29', '#fff', '#2e3040', '#7aa2f7', "'Noto Sans', sans-serif"]],
+  ['breeze', 'Breeze', 'Wie KDE Plasma', ['#141a20', '#eff0f1', '#232a32', '#3daee9', "'Noto Sans', sans-serif"]],
+  ['aubergine', 'Aubergine', 'Wie Ubuntu', ['#2c001e', '#fff', '#4a1a3c', '#e95420', "'Noto Sans', sans-serif"]],
+  ['matrix', 'Terminal', 'Hacker-Look', ['#000', '#7dff9a', '#061a0b', '#3cff6e', "'JB Mono', monospace"]],
 ];
 const ACCENTS = ['#c8a26b', '#d9b98c', '#8fb3a0', '#9bb5c9', '#c98f7a', '#b9a3c9', '#e0d3b8', '#a6b86f'];
 const HUES = [8, 28, 48, 100, 150, 200, 225, 265, 300, 340];
@@ -63,7 +80,8 @@ async function load() {
 
 function sceneOpts(g) {
   const photo = (g.background || '').startsWith('/');
-  return { scene: photo ? 'nacht' : (g.background || 'nacht'), motion: g.motion || 'voll', weatherFx: g.weatherFx !== false, aurora: !!g.aurora };
+  return { scene: photo ? 'nacht' : (g.background || 'nacht'), motion: g.motion || 'voll', weatherFx: g.weatherFx !== false, aurora: !!g.aurora,
+    season: !!g.season && !photo, seasonFx: g.seasonFx !== false };
 }
 
 function applyLook() {
@@ -82,6 +100,7 @@ function applyLook() {
   S.scene.setLocation(g.lat, g.lon);
   S.scene.setPhoto((g.background || '').startsWith('/') ? g.background : null);
   S.scene.set(sceneOpts(g));
+  window.applyWebcam?.(g);   // Live-Webcam als Hintergrund (über der Landschaft)
 }
 
 async function loadWeather() {
@@ -185,31 +204,45 @@ function renderWeather() {
   const w = S.weather, el = $('#weather');
   if (!w || !w.current) { el.innerHTML = `<span class="c">${L.esc(S.state?.general.city || '')}<br>Wetter lädt …</span>`; return; }
   const c = w.current;
+  const big = S.state?.general.bigWeather !== false && w.daily && w.daily.time;
+  const fc = big ? `<span class="fc">${w.daily.time.slice(1, 4).map((t, i) => `<i>${new Date(t).toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')}${L.weatherIcon(w.daily.weather_code[i + 1], 1)}<b>${Math.round(w.daily.temperature_2m_max[i + 1])}°</b><small>${Math.round(w.daily.temperature_2m_min[i + 1])}°</small></i>`).join('')}</span>` : '';
+  el.classList.toggle('big', !!big);
   el.innerHTML = `${L.weatherIcon(c.weather_code, c.is_day)}<span class="t">${Math.round(c.temperature_2m)}°</span>
-    <span class="c">${L.esc(w.city)}<br>${L.weatherText(c.weather_code)}</span>`;
+    <span class="c">${L.esc(w.city)}<br>${L.weatherText(c.weather_code)}</span>${fc}`;
 }
 
 function tileArt(t) {
   if (t.image) return h('div', { class: 'art', style: { backgroundImage: `url("${t.image}")` } });
   const hue = t.hue ?? 200;
-  return h('div', { class: 'art gen', style: { background: `linear-gradient(135deg, hsl(${hue} 32% 26%), hsl(${(hue + 25) % 360} 28% 11%))` } });
+  const bg = t.color ? `linear-gradient(135deg, ${t.color}, color-mix(in srgb, ${t.color} 35%, #060807))`
+    : `linear-gradient(135deg, hsl(${hue} 32% 26%), hsl(${(hue + 25) % 360} 28% 11%))`;
+  const art = h('div', { class: 'art gen', style: { background: bg } });
+  if (t.logo) art.append(h('img', { class: 'logo', src: t.logo, alt: '', onerror: function () { this.remove(); } }));
+  return art;
 }
 
+const OPEN_BADGE = { kino: 'KINO', tab: '', lichtung: '' };
 function tileEl(t, i) {
-  const el = h('button', { class: 'tile', 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
+  const el = h('button', { class: `tile size-${t.size || 'normal'}${t.logo && !t.image ? ' has-logo' : ''}`, 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
     tileArt(t), h('div', { class: 'shade' }),
     h('div', { class: 'num' }, L.pad(i + 1)),
-    t.tvMode ? h('div', { class: 'tv' }, 'TV') : null,
+    OPEN_BADGE[t.open] ? h('div', { class: 'tv' }, OPEN_BADGE[t.open]) : null,
     h('div', { class: 'name' }, h('b', {}, t.title), h('span', {}, t.subtitle || hostOf(t.url))));
   el.addEventListener('click', () => openTile(t));
   el.addEventListener('contextmenu', (e) => { e.preventDefault(); tileMenu(t); });
-  el.addEventListener('navfocus', () => setHero(L.pad(i + 1) + ' · ' + (t.url === 'lichtung:live' ? 'Live-Fernsehen' : hostOf(t.url)), t.title, t.description || t.subtitle || ''));
+  el.addEventListener('navfocus', () => setHero(L.pad(i + 1) + ' · ' + hostOf(t.url), t.title, t.description || t.subtitle || ''));
   return el;
 }
 
 function hostOf(url) {
-  if (url === 'lichtung:live') return 'Live-TV';
+  if (url === 'lichtung:live') return 'Live-Fernsehen';
   if (url === 'lichtung:mirror') return 'Spiegeln';
+  if (url === 'lichtung:browser') return 'Brave';
+  if (url === 'lichtung:apps') return 'Programme';
+  if (url === 'lichtung:music') return 'Musikbox';
+  if (url === 'lichtung:doku') return 'Mediathek';
+  if (url === 'lichtung:ambient') return 'Ambiente';
+  if ((url || '').startsWith('app:')) return 'Programm';
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch (_) { return url || ''; }
 }
 
@@ -284,35 +317,69 @@ function renderHome() {
 function launching(title) {
   $('#launch-title').textContent = title;
   $('#launching').classList.add('show');
-  setTimeout(() => $('#launching').classList.remove('show'), 8000);
+  clearTimeout(S.launchT);
+  S.launchT = setTimeout(() => $('#launching').classList.remove('show'), 6000);
+}
+
+/* Website in Brave öffnen (mode: 'tab' = normaler Browser, 'kino' = Fenster ohne Leisten).
+ * Fehlt Brave (z. B. beim Testen), öffnet sich die Seite hier im Fenster. */
+async function openWeb(url, mode = 'tab', title = '') {
+  launching(title || hostOf(url) || 'Brave');
+  try {
+    await api('/api/browser/open', 'POST', { url, mode });
+    setTimeout(() => $('#launching').classList.remove('show'), 2500);
+  } catch (e) {
+    if (url) setTimeout(() => { location.href = url; }, 250);
+    else { $('#launching').classList.remove('show'); L.toast(e.message); }
+  }
+}
+
+async function launchApp(id, title) {
+  launching(title || 'Programm');
+  try { await api('/api/apps/launch', 'POST', { id }); setTimeout(() => $('#launching').classList.remove('show'), 2500); }
+  catch (e) { $('#launching').classList.remove('show'); L.toast(e.message); }
 }
 
 function openTile(t) {
   if (!t.url) return editTile(t);
   if (t.url === 'lichtung:mirror') return mirrorHelp();
-  launching(t.title);
-  const url = t.url === 'lichtung:live' ? '/live.html' : t.url;
-  setTimeout(() => { location.href = url; }, 250);
+  if (t.url === 'lichtung:apps') return appsPicker();
+  if (t.url === 'lichtung:music') return window.musicBox?.();
+  if (t.url === 'lichtung:doku') return window.randomDoc?.();
+  if (t.url === 'lichtung:ambient') { launching(t.title); setTimeout(() => { location.href = '/ambient.html'; }, 250); return; }
+  if (t.url === 'lichtung:browser') return openWeb('', 'tab', t.title);
+  if (t.url.startsWith('app:')) return launchApp(t.url.slice(4), t.title);
+  if (t.url === 'lichtung:live' || t.url.startsWith('/') || t.open === 'lichtung') {
+    launching(t.title);
+    const url = t.url === 'lichtung:live' ? '/live.html' : t.url;
+    setTimeout(() => { location.href = url; }, 250);
+    return;
+  }
+  return openWeb(t.url, t.open || 'tab', t.title);
 }
 
 function openContinue(c, fromStart) {
-  launching(c.title);
+  if (c.player) {
+    launching(c.title);
+    const url = '/play.html?' + new URLSearchParams({ src: c.player, title: c.title, sub: c.site, key: c.url, dur: c.duration || 0, ...(fromStart ? { start: 0 } : {}) });
+    const go = () => { location.href = url; };
+    if (fromStart) api('/api/continue?key=' + encodeURIComponent(c.key), 'DELETE').finally(() => setTimeout(go, 150));
+    else setTimeout(go, 250);
+    return;
+  }
   let url = c.url;
-  if (c.player) url = '/play.html?' + new URLSearchParams({ src: c.player, title: c.title, sub: c.site, key: c.url, dur: c.duration || 0, ...(fromStart ? { start: 0 } : {}) });
-  else if (c.yt) url = `https://www.youtube.com/tv#/watch?v=${c.yt}${fromStart ? '' : '&t=' + Math.floor(c.time) + 's'}`;
+  if (c.yt) url = `https://www.youtube.com/watch?v=${c.yt}${fromStart ? '' : '&t=' + Math.floor(c.time) + 's'}`;
   // "Von vorn": Eintrag löschen, damit die Erweiterung nicht automatisch vorspult
-  const go = () => { location.href = url; };
-  if (fromStart) api('/api/continue?key=' + encodeURIComponent(c.key), 'DELETE').finally(() => setTimeout(go, 150));
-  else setTimeout(go, 250);
+  if (fromStart) api('/api/continue?key=' + encodeURIComponent(c.key), 'DELETE').finally(() => openWeb(url, 'tab', c.title));
+  else openWeb(url, /youtube\.com/.test(url) ? 'kino' : 'tab', c.title);
 }
 
 /* Anleitung: Handy aufs TV bringen (iPhone, Android, YouTube) */
 function mirrorHelp(tab) {
   tab = tab || 'android';
   const step = (n, t, d) => h('div', { class: 'mirror-step' }, h('span', { class: 'n' }, n), h('div', {}, h('b', {}, t), h('span', {}, d)));
-  const tabs = [['android', 'Android (S25 & Co.)'], ['iphone', 'iPhone & iPad'], ['youtube', 'YouTube-Cast'], ['stream', 'Ohne Entwickler­modus']];
+  const tabs = [['android', 'Android (S26 & Co.)'], ['samsung', 'Samsung & KDE Connect'], ['iphone', 'iPhone & iPad'], ['stream', 'Ohne Entwickler­modus']];
   const body = h('div', {});
-  const yt = S.state.tiles.find((t) => t.url.includes('youtube.com/tv'));
   const m = openModal([
     h('h3', {}, 'Handy aufs TV'),
     h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))', margin: 'calc(1*var(--u)) 0 calc(2*var(--u))' } }, tabs.map(([id, label]) =>
@@ -342,13 +409,20 @@ function mirrorHelp(tab) {
       step('3', 'Bildschirmsynchronisierung → „Lichtung“', 'Das Bild erscheint sofort im Vollbild, mit Ton.'),
       step('4', 'Beenden', 'Am iPhone „Synchronisierung beenden“.'));
   }
-  if (tab === 'youtube') {
+  if (tab === 'samsung') {
     body.append(
-      step('1', 'YouTube-Kachel öffnen', 'In der TV-Ansicht links: Einstellungen.'),
-      step('2', '„Mit Smartphone verbinden“', 'Dort steht ein TV-Code.'),
-      step('3', 'Code in der YouTube-App eingeben', 'App → Profil → Einstellungen → Auf Fernseher ansehen → TV-Code.'),
-      step('4', 'Cast-Symbol tippen', 'Videos laufen auf dem TV, das Handy ist die Fernbedienung. Geht mit Android und iPhone.'),
-      yt ? h('div', { class: 'btns' }, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => openTile(yt) }, 'YouTube öffnen')) : null);
+      h('div', { class: 'lead', style: { textTransform: 'none', letterSpacing: '.02em' } }, 'Ehrlich gesagt: Samsung „Smart View“ (Miracast) ist unter Linux wackelig. Zuverlässig ist KDE Connect – damit steuerst du Videos, Lautstärke und schickst Links vom Handy.'),
+      h('div', { class: 'mirror-cols' },
+        h('div', {}, h('div', { class: 'mirror-h' }, 'KDE Connect (empfohlen)'),
+          step('1', 'App installieren', '„KDE Connect“ aus dem Play Store auf dem Handy.'),
+          step('2', 'Gleiches WLAN', 'Der Fernseher erscheint in der App als „lichtung“.'),
+          step('3', 'Koppeln', 'Einstellungen → Handy & Verbindung → KDE Connect → Koppeln, dann am Handy bestätigen.'),
+          step('4', 'Nutzen', 'Medien steuern, Lautstärke, „Teilen → lichtung“ für Links, Pause bei Anruf.')),
+        h('div', {}, h('div', { class: 'mirror-h' }, 'Smart View (experimentell)'),
+          step('1', 'Nur mit passendem WLAN-Chip', 'Der Laptop muss „Wi-Fi Direct“ können.'),
+          step('2', 'WLAN-Internet ist dabei weg', 'Solange der Empfänger läuft – LAN-Kabel hilft.'),
+          step('3', 'Starten', 'Einstellungen → Handy & Verbindung → Smart View-Empfänger.'))),
+      h('div', { class: 'btns' }, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => { m.close(); openSettings('remote'); } }, 'Zu den Einstellungen')));
   }
   if (tab === 'stream') {
     const inp = h('input', { class: 'inp', 'data-nav': true, placeholder: 'Adresse aus der App, z. B. 192.168.178.23:8080' });
@@ -356,7 +430,7 @@ function mirrorHelp(tab) {
       step('1', 'ScreenStream öffnen', 'Modus „Lokal (MJPEG)“ wählen und Stream starten.'),
       step('2', 'Adresse ablesen', 'Die App zeigt eine Adresse wie http://192.168.178.23:8080.'),
       step('3', 'Hier eingeben oder per Handy-Fernbedienung „Link aufs TV“ schicken', ''),
-      h('div', { style: { display: 'flex', gap: '1em', marginTop: '1em' } }, inp, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => { let u = inp.value.trim(); if (!u) return; if (!/^https?:/.test(u)) u = 'http://' + u; location.href = u; } }, 'Öffnen')));
+      h('div', { style: { display: 'flex', gap: '1em', marginTop: '1em' } }, inp, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => { let u = inp.value.trim(); if (!u) return; if (!/^https?:/.test(u)) u = 'http://' + u; m.close(); openWeb(u, 'kino', 'Handy-Bild'); } }, 'Öffnen')));
   }
 }
 
@@ -489,11 +563,24 @@ function askPin(title, check) {
 }
 
 /* ---------- Kachel-Editor ---------- */
-function editTile(t) {
+const SIZES = [['klein', 'Klein'], ['normal', 'Normal'], ['gross', 'Groß'], ['banner', 'Banner']];
+const OPENS = [['tab', 'Brave-Tab', 'Normaler Browser mit Adressleiste'], ['kino', 'Kino-Fenster', 'Ohne Leisten, wie eine TV-App'], ['lichtung', 'Lichtung', 'Eigene Seiten (Live-TV, Player)']];
+
+function segmented(opts, cur, onPick) {
+  const box = h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))' } });
+  opts.forEach(([v, n]) => {
+    const b = h('button', { class: 'btn' + (cur === v ? ' primary' : ''), 'data-nav': true, onclick: () => { $$('.btn', box).forEach((x) => x.classList.remove('primary')); b.classList.add('primary'); onPick(v); } }, n);
+    box.append(b);
+  });
+  return box;
+}
+
+function editTile(t, prefill) {
   const isNew = !t;
-  const d = Object.assign({ id: '', title: '', subtitle: '', description: '', url: '', tvMode: false, image: '', hue: HUES[Math.floor(Math.random() * HUES.length)] }, t || {});
-  const preview = h('div', { style: { display: 'flex', justifyContent: 'center', margin: '0 0 calc(2.6*var(--u))' } });
-  const paintPreview = () => { preview.innerHTML = ''; const el = tileEl(d, S.state.tiles.findIndex((x) => x.id === d.id) >= 0 ? S.state.tiles.findIndex((x) => x.id === d.id) : S.state.tiles.length); el.classList.add('preview-tile'); el.removeAttribute('data-nav'); preview.appendChild(el); };
+  const d = Object.assign({ id: '', title: '', subtitle: '', description: '', url: '', image: '', logo: '', color: '', size: 'normal', open: 'tab', hue: HUES[Math.floor(Math.random() * HUES.length)] }, t || {}, prefill || {});
+  const preview = h('div', { class: 'tile-preview' });
+  const idx = () => { const i = S.state.tiles.findIndex((x) => x.id === d.id); return i >= 0 ? i : S.state.tiles.length; };
+  const paintPreview = () => { preview.innerHTML = ''; const el = tileEl(d, idx()); el.classList.add('preview-tile'); el.removeAttribute('data-nav'); preview.appendChild(el); };
 
   const inp = (key, ph, type = 'text') => {
     const el = h('input', { class: 'inp', type, placeholder: ph, 'data-nav': true, value: d[key] || '' });
@@ -502,34 +589,70 @@ function editTile(t) {
   };
   const ta = h('textarea', { class: 'inp', placeholder: 'Wird im Info-Bereich angezeigt, wenn die Kachel ausgewählt ist', 'data-nav': true }, d.description || '');
   ta.addEventListener('input', () => { d.description = ta.value; });
-  const urlInp = inp('url', 'z. B. https://www.ardmediathek.de');
+  const urlInp = inp('url', 'Website eintippen, z. B. ardmediathek.de – dann „Automatisch“');
   const titleInp = inp('title', 'Name der Kachel');
   const subInp = inp('subtitle', 'Kurzer Untertitel');
   const imgInp = inp('image', 'Bild-Adresse (https://…) – oder per Handy hochladen', 'url');
-  const tv = h('button', { class: 'toggle' + (d.tvMode ? ' on' : ''), 'data-nav': true, onclick: () => { d.tvMode = !d.tvMode; tv.classList.toggle('on', d.tvMode); paintPreview(); } });
+  const status = h('span', { class: 'lead', style: { margin: 0 } }, '');
+
+  // Automatisch: Titel, Beschreibung, Logo und Farbe von der Website holen
+  const auto = async () => {
+    let u = urlInp.value.trim();
+    if (!u || /^(lichtung|app):/.test(u)) { L.toast('Erst eine Website-Adresse eintippen'); return; }
+    if (!/^https?:/.test(u)) u = 'https://' + u;
+    status.textContent = 'Hole Titel und Logo …';
+    try {
+      const i = await api('/api/siteinfo?url=' + encodeURIComponent(u));
+      d.url = u; urlInp.value = u;
+      if (i.title) { d.title = i.title; titleInp.value = i.title; }
+      const sub = (i.description || '').split(/(?<=[.!?])\s/)[0].slice(0, 70);
+      if (sub && !d.subtitle) { d.subtitle = sub; subInp.value = sub; }
+      if (i.description && !d.description) { d.description = i.description.slice(0, 300); ta.value = d.description; }
+      if (i.color) d.color = i.color;
+      const logoSrc = i.logo || i.fallbackIcon;
+      if (logoSrc) {
+        const saved = await api('/api/siteinfo/logo', 'POST', { url: logoSrc }).catch(() => ({}));
+        d.logo = saved.url || '';
+      }
+      status.textContent = i.error ? 'Seite nicht erreichbar – Name aus der Adresse übernommen' : 'Übernommen ✓';
+      paintPreview();
+    } catch (e) { status.textContent = 'Klappt gerade nicht: ' + e.message; }
+  };
+
   const hues = h('div', { class: 'swatches' }, HUES.map((hu) => {
-    const b = h('button', { class: 'swatch' + (hu === d.hue ? ' sel' : ''), 'data-nav': true, style: { background: `linear-gradient(135deg, hsl(${hu} 32% 34%), hsl(${(hu + 25) % 360} 28% 14%))` },
-      onclick: () => { d.hue = hu; $$('.swatch', hues).forEach((s) => s.classList.remove('sel')); b.classList.add('sel'); paintPreview(); } });
+    const b = h('button', { class: 'swatch' + (hu === d.hue && !d.color ? ' sel' : ''), 'data-nav': true, style: { background: `linear-gradient(135deg, hsl(${hu} 32% 34%), hsl(${(hu + 25) % 360} 28% 14%))` },
+      onclick: () => { d.hue = hu; d.color = ''; $$('.swatch', hues).forEach((s) => s.classList.remove('sel')); b.classList.add('sel'); paintPreview(); } });
     return b;
   }));
   const presets = h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))' } }, PRESETS.map((p) =>
     h('button', { class: 'btn', 'data-nav': true, onclick: () => {
-      Object.assign(d, { title: p.title, subtitle: p.subtitle, url: p.url, tvMode: !!p.tvMode, hue: p.hue });
-      titleInp.value = d.title; subInp.value = d.subtitle; urlInp.value = d.url; tv.classList.toggle('on', d.tvMode); paintPreview();
+      Object.assign(d, { title: p.title, subtitle: p.subtitle, url: p.url, open: p.open || 'tab', size: p.size || d.size, hue: p.hue, logo: '', color: '' });
+      titleInp.value = d.title; subInp.value = d.subtitle; urlInp.value = d.url; paintPreview();
     } }, p.title)));
+  const sizes = segmented(SIZES, d.size, (v) => { d.size = v; paintPreview(); });
+  const opens = segmented(OPENS.map(([v, n]) => [v, n]), d.open, (v) => { d.open = v; paintPreview(); });
 
   const field = (label, ctl, small) => h('div', { class: 'field' }, h('label', {}, label, small ? h('small', {}, small) : null), ctl);
   const m = openModal([
     h('h3', {}, isNew ? 'Neue Kachel' : 'Kachel bearbeiten'),
     h('div', { class: 'lead' }, 'Vorschau'),
     preview,
-    field('Vorlage', presets, 'Füllt Name und Adresse aus'),
+    field('Adresse', h('div', { style: { display: 'flex', gap: '1em', alignItems: 'center' } }, urlInp,
+      h('button', { class: 'btn primary', 'data-nav': true, onclick: auto }, 'Automatisch')), 'Titel, Text, Logo & Farbe holt Lichtung selbst'),
+    status,
     field('Name', titleInp),
     field('Untertitel', subInp),
     field('Beschreibung', ta),
-    field('Adresse', urlInp, 'Website oder lichtung:live'),
-    field('TV-Ansicht', tv, 'Seite hält uns für einen Fernseher (für youtube.com/tv)'),
+    field('Öffnen als', opens, 'Brave-Tab = normaler Browser · Kino = ohne Leisten'),
+    field('Größe', sizes),
+    field('Vorlage', presets, 'Füllt alles mit einem Klick'),
+    field('Programm', h('button', { class: 'btn', 'data-nav': true, onclick: () => appsPicker((a) => {
+      Object.assign(d, { title: a.name, subtitle: a.desc || 'Programm', url: 'app:' + a.id, open: 'lichtung', logo: '' });
+      titleInp.value = d.title; subInp.value = d.subtitle; urlInp.value = d.url; paintPreview();
+    }) }, 'Programm als Kachel wählen …'), 'Terminal, App-Store, Spiele oder installierte Apps'),
     field('Farbe', hues, 'Falls kein Bild gesetzt ist'),
+    field('Logo', h('div', { style: { display: 'flex', gap: '1em' } },
+      h('button', { class: 'btn', 'data-nav': true, onclick: () => { d.logo = ''; paintPreview(); } }, 'Logo entfernen')), ''),
     field('Bild', h('div', { style: { display: 'flex', gap: '1em' } }, imgInp,
       h('button', { class: 'btn', 'data-nav': true, onclick: () => { d.image = ''; imgInp.value = ''; paintPreview(); } }, 'Entfernen')), 'Eigene Fotos am einfachsten über die Handy-Fernbedienung → Kacheln'),
     h('div', { class: 'btns' },
@@ -542,17 +665,18 @@ function editTile(t) {
       h('button', { class: 'btn', 'data-nav': true, onclick: () => m.close() }, 'Abbrechen')),
   ]);
   paintPreview();
-  // Fokus auf den Namen (neue Kachel) bzw. die Vorlagen
-  setTimeout(() => Nav.focus(isNew ? presets.firstElementChild : titleInp, { instant: true }), 30);
+  setTimeout(() => Nav.focus(urlInp, { instant: true }), 30);
+  if (prefill && prefill.url && !prefill.title) setTimeout(auto, 100);
 }
 
 /* ============================================================
  * 5. Einstellungen
  * ============================================================ */
 const SECTIONS = [
-  ['tiles', 'Kacheln'], ['profiles', 'Profile'], ['channels', 'Live-TV-Sender'], ['look', 'Aussehen'],
-  ['weather', 'Wetter & Ort'], ['audio', 'Ton'], ['saver', 'Bildschirmschoner'], ['remote', 'Handy-Fernbedienung'],
-  ['advanced', 'Erweitert'], ['system', 'System'], ['help', 'Tasten & Hilfe'],
+  ['tiles', 'Kacheln'], ['profiles', 'Profile'], ['browser', 'Browser & YouTube'], ['apps', 'Programme'],
+  ['channels', 'Live-TV-Sender'], ['recorder', 'Mediathek-Rekorder'], ['look', 'Aussehen'], ['boot', 'Start & Boot'], ['weather', 'Wetter & Ort'],
+  ['audio', 'Ton'], ['saver', 'Bildschirmschoner'], ['remote', 'Handy & Verbindung'], ['bluetooth', 'Bluetooth'],
+  ['services', 'Netzwerk-Dienste'], ['power', 'Energie'], ['system', 'System & Updates'], ['help', 'Tasten & Hilfe'],
 ];
 
 function openSettings(section) {
@@ -636,6 +760,8 @@ function renderSection(keepFocus) {
       });
       $$('.list-row .av', body).forEach((a) => Object.assign(a.style, { width: 'calc(5*var(--u))', height: 'calc(5*var(--u))', fontSize: 'calc(2.4*var(--u))' }));
       add(h('div', { class: 'btns' }, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => editProfile(null) }, '+ Neues Profil')));
+      add(field('Profil-Autostart', stepper(Number(g.profileAutoSeconds ?? 2), { min: 0, max: 10, step: 1, fmt: (v) => v ? v + ' Sek.' : 'Aus' }, (v) => saveGeneral({ profileAutoSeconds: v })), 'Wartezeit bis zum Standardprofil'));
+      add(field('Eigene Brave-Logins je Profil', toggle(g.braveProfiles !== false, (v) => saveGeneral({ braveProfiles: v })), 'Jedes Profil hat eigene Anmeldungen (YouTube, Netflix …), Verlauf und Lesezeichen'));
       break;
     }
     case 'channels': {
@@ -647,37 +773,6 @@ function renderSection(keepFocus) {
         h('button', { class: 'btn', 'data-nav': true, onclick: () => moveChannel(i, 1) }, '↓'),
         h('button', { class: 'btn danger', 'data-nav': true, onclick: () => saveChannels(S.state.channels.filter((_, j) => j !== i)) }, 'Entfernen'))));
       add(h('div', { class: 'btns' }, h('button', { class: 'btn primary', 'data-nav': true, onclick: () => editChannel(-1) }, '+ Sender hinzufügen')));
-      break;
-    }
-    case 'look': {
-      head('Aussehen', 'Designart, Hintergrund, Akzentfarbe und wie stark der Hintergrund abgedunkelt wird.');
-      add(field('Designart', h('div', { class: 'theme-choices' }, THEMES.map(([id, name, sub, c]) =>
-        h('button', { class: 'theme-choice' + ((g.theme || 'lichtung') === id ? ' sel' : ''), 'data-nav': true, style: { background: c[0], color: c[1] },
-          onclick: async () => { await saveGeneral({ theme: id }); renderSection(true); L.toast('Designart: ' + name); } },
-          h('b', { style: { fontFamily: c[4] } }, name), h('span', {}, sub), h('i', {}, h('em', { style: { background: c[2] } }), h('em', { style: { background: c[2], outline: '2px solid ' + c[3] } }), h('em', { style: { background: c[2] } }))))),
-        'Ändert die ganze Oberfläche'));
-      const choices = h('div', { class: 'bg-choices' });
-      const customs = (S.state.general.customBackgrounds || []);
-      [...L.BACKGROUNDS.map((b) => ({ id: b.id, name: b.name })), ...customs.map((u, i) => ({ id: u, name: 'Foto ' + (i + 1) }))].forEach((b) => {
-        const el = h('button', { class: 'bg-choice' + (g.background === b.id ? ' sel' : ''), 'data-nav': true, onclick: async () => { await saveGeneral({ background: b.id }); renderSection(true); } }, h('span', {}, b.name));
-        if (b.id.startsWith('/')) el.style.backgroundImage = `url("${b.id}")`;
-        else { const c = document.createElement('canvas'); c.width = 240; c.height = 140; L.paintScene(c.getContext('2d'), 240, 140, b.id); el.style.backgroundImage = `url(${c.toDataURL()})`; }
-        choices.append(el);
-      });
-      add(field('Hintergrund', choices, 'Eigene Fotos: Handy-Fernbedienung → Aussehen'));
-      add(field('Akzentfarbe', h('div', { class: 'swatches' }, ACCENTS.map((a) => h('button', { class: 'swatch' + (g.accent === a ? ' sel' : ''), style: { background: a }, 'data-nav': true, onclick: async () => { await saveGeneral({ accent: a }); renderSection(true); } })))));
-      add(field('Abdunkeln', stepper(Math.round((g.dim ?? .55) * 100), { min: 10, max: 90, step: 5, fmt: (v) => v + ' %' }, (v) => saveGeneral({ dim: v / 100 }))));
-      const seg = (opts, cur, onPick) => h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))' } }, opts.map(([v, n]) =>
-        h('button', { class: 'btn' + (cur === v ? ' primary' : ''), 'data-nav': true, onclick: async () => { await onPick(v); renderSection(true); } }, n)));
-      add(field('Animation', seg([['aus', 'Aus'], ['sanft', 'Sanft'], ['voll', 'Voll']], g.motion || 'voll', (v) => saveGeneral({ motion: v })), 'Sanft spart Leistung'));
-      add(field('Wetter-Effekte', toggle(g.weatherFx !== false, (v) => saveGeneral({ weatherFx: v })), 'Regen, Schnee, Nebel, Gewitter – nach echtem Wetter'));
-      add(field('Polarlicht', toggle(!!g.aurora, (v) => saveGeneral({ aurora: v })), 'In klaren Nächten'));
-      const d = S.scene?.describe();
-      const P = S.preview || {};
-      const setP = (patch) => { S.preview = Object.assign({}, S.preview || {}, patch); S.scene.preview(S.preview); renderSection(true); };
-      add(field('Vorschau Wetter', seg([[null, 'Echt'], ['clear', 'Klar'], ['partly', 'Wolkig'], ['rain', 'Regen'], ['snow', 'Schnee'], ['fog', 'Nebel'], ['storm', 'Gewitter']], P.kind ?? null, (v) => setP({ kind: v })),
-        d ? `Gerade: ${d.tod} · ${d.moon} · Sonne ${d.sunAlt}°` : ''));
-      add(field('Vorschau Tageszeit', seg([[null, 'Echt'], [6.5, 'Morgen'], [12, 'Mittag'], [17, 'Abend'], [23, 'Nacht']], P.hour ?? null, (v) => setP({ hour: v })), 'Nur zum Ausprobieren – beim Verlassen wieder echt'));
       break;
     }
     case 'weather': {
@@ -710,70 +805,14 @@ function renderSection(keepFocus) {
         if (S.view === 'settings' && !$('#s-body').contains(Nav.current)) return;
         if (a.sinks.length) Nav.focus(box.firstElementChild, { instant: true });
       });
+      add(field('Lautstärke-Schritt', stepper(Number(g.volumeStep || 5), { min: 1, max: 20, step: 1, fmt: (v) => v + ' %' }, (v) => saveGeneral({ volumeStep: v })), 'Pro Tastendruck'));
+      add(h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: () => api('/api/key', 'POST', { key: 'voldown' }) }, 'Leiser'),
+        h('button', { class: 'btn', 'data-nav': true, onclick: () => api('/api/key', 'POST', { key: 'volup' }) }, 'Lauter'),
+        h('button', { class: 'btn', 'data-nav': true, onclick: () => openSettings('system') }, 'Tasten testen (Systeminfo)')));
       break;
     }
-    case 'saver': {
-      head('Bildschirmschoner', 'Zeigt Uhr, Datum und Wetter, wenn eine Weile nichts passiert und kein Video läuft. Jede Taste beendet ihn.');
-      add(field('Starten nach', stepper(Number(g.screensaverMinutes ?? 5), { min: 0, max: 60, step: 1, fmt: (v) => v ? v + ' Min.' : 'Aus' }, (v) => saveGeneral({ screensaverMinutes: v }))));
-      add(field('Auch auf Webseiten', toggle(g.screensaverOnPages !== false, (v) => saveGeneral({ screensaverOnPages: v })), 'z. B. in der Mediathek, wenn nichts abgespielt wird'));
-      add(h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: () => startSaver() }, 'Jetzt anzeigen')));
-      break;
-    }
-    case 'remote': {
-      head('Handy-Fernbedienung', 'Handy ins gleiche WLAN, QR-Code scannen, Code eingeben. Dann kannst du steuern, tippen, Kacheln bearbeiten und eigene Fotos hochladen.');
-      const box = h('div', { class: 'remote-box' }, h('div', { class: 'qr', id: 'qr' }), h('div', {},
-        h('div', { class: 'lead', style: { marginBottom: '.4em' } }, 'Adresse'), h('div', { id: 'remote-url', style: { fontSize: 'calc(2.2*var(--u))' } }, '…'),
-        h('div', { class: 'lead', style: { margin: '2em 0 0' } }, 'Code'), h('div', { class: 'big-code', id: 'remote-pin' }, '····'),
-        h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: async () => { await api('/api/remote/newpin', 'POST', {}); renderSection(true); } }, 'Neuen Code erzeugen'))));
-      add(box);
-      api('/api/netinfo').then((n) => {
-        const url = `http://${n.ip}:${n.port}/remote`;
-        $('#remote-url').textContent = url;
-        $('#remote-pin').textContent = n.pin;
-        try { const qr = qrcode(0, 'M'); qr.addData(url + '#' + n.pin); qr.make(); $('#qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); } catch (_) {}
-      });
-      break;
-    }
-    case 'advanced': {
-      head('Erweitert', 'Nur ändern, wenn etwas nicht funktioniert.');
-      // Falls YouTube eine Kennung sperrt: einfach eine andere Konsole/TV probieren
-      const UAS = [
-        ['PlayStation 4', 'Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH)'],
-        ['Xbox Series X', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; Xbox; Xbox Series X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.82 Safari/537.36 Edge/20.02'],
-        ['Nintendo Switch', 'Mozilla/5.0 (Nintendo Switch; WifiWebAuthApplet) AppleWebKit/606.4 (KHTML, like Gecko) NF/6.0.1.15.4 NintendoBrowser/5.1.0.20393'],
-        ['Samsung-TV', 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.0 TV Safari/537.36'],
-      ];
-      const ua = h('input', { class: 'inp', 'data-nav': true, value: g.tvUserAgent || '' });
-      add(field('TV-Kennung', h('div', { class: 'swatches', style: { gap: 'calc(.8*var(--u))' } }, UAS.map(([n, v]) =>
-        h('button', { class: 'btn' + (g.tvUserAgent === v ? ' primary' : ''), 'data-nav': true, onclick: async () => { await saveGeneral({ tvUserAgent: v }); L.toast(n + ' gewählt – greift beim nächsten Öffnen'); renderSection(true); } }, n))),
-        'Als welches Gerät sich die TV-Ansicht ausgibt. Klappt YouTube TV nicht mehr: andere probieren.'));
-      add(field('Eigene Kennung', h('div', { style: { display: 'flex', gap: '1em' } }, ua, h('button', { class: 'btn', 'data-nav': true, onclick: async () => { await saveGeneral({ tvUserAgent: ua.value }); L.toast('Gespeichert'); } }, 'Speichern'))));
-      add(field('Lautstärke-Schritt', stepper(Number(g.volumeStep || 5), { min: 1, max: 20, step: 1, fmt: (v) => v + ' %' }, (v) => saveGeneral({ volumeStep: v }))));
-      add(field('Profil-Autostart', stepper(Number(g.profileAutoSeconds ?? 2), { min: 0, max: 10, step: 1, fmt: (v) => v ? v + ' Sek.' : 'Aus' }, (v) => saveGeneral({ profileAutoSeconds: v })), 'Wartezeit bis zum Standardprofil'));
-      add(field('Tasten-Dienst', h('span', {}, S.state.evdev ? 'aktiv ✓' : 'nicht aktiv – Home-/Lautstärketasten gehen nur auf der Startseite'), ''));
-      add(field('Handy-Tasten', h('span', {}, S.state.uinput ? 'aktiv ✓' : 'nicht aktiv'), ''));
-      break;
-    }
-    case 'system': {
-      head('System', 'Neustarts und Ausschalten.');
-      add(h('div', { class: 'menu-list', style: { maxWidth: 'calc(60*var(--u))' } },
-        h('button', { 'data-nav': true, onclick: () => runSetup(() => { renderHome(); show('home'); }) }, h('span', {}, 'Einrichtung wiederholen'), h('span', { class: 'k' }, 'Assistent vom ersten Start')),
-        h('button', { 'data-nav': true, onclick: () => api('/api/system', 'POST', { action: 'restart-browser' }) }, h('span', {}, 'Browser neu starten'), h('span', { class: 'k' }, 'falls etwas hängt')),
-        h('button', { 'data-nav': true, onclick: () => confirmBox('Laptop neu starten?', () => api('/api/system', 'POST', { action: 'reboot' })) }, h('span', {}, 'Neu starten')),
-        h('button', { 'data-nav': true, class: 'danger', onclick: () => confirmBox('Laptop ausschalten?', () => api('/api/system', 'POST', { action: 'poweroff' })) }, h('span', {}, 'Ausschalten'))));
-      break;
-    }
-    case 'help': {
-      head('Tasten & Hilfe', 'Alles geht mit Laptop-Tastatur, Funk-Fernbedienung, Maus oder Handy.');
-      const rows = [
-        ['← ↑ → ↓', 'Bewegen'], ['Enter / OK', 'Öffnen, bestätigen'], ['☰ / Menü-Taste, M, Rechtsklick', 'Optionen zur Kachel'],
-        ['Esc / Zurück / Rücktaste', 'Zurück'], ['Windows-Taste, F1, Home', 'Von überall zur Startseite'], ['1 – 9', 'Kachel direkt öffnen'],
-        ['S', 'Einstellungen'], ['Lautstärketasten, F-Tasten', 'Lautstärke mit Anzeige'], ['Live-TV: ↑ ↓ / Bild ↑↓ / Ziffern', 'Sender wechseln'],
-        ['Live-TV: Enter', 'Senderliste'], ['F11 (auf Webseiten)', 'Vollbild für Videos, falls nötig'], ['Strg + / Strg −', 'Webseite größer/kleiner'],
-      ];
-      add(h('div', { class: 'keytable' }, rows.map(([k, v]) => [h('kbd', {}, k), h('span', {}, v)])));
-      break;
-    }
+    default:
+      window.renderExtraSection?.(S.section, { add, head, body, g, field, toggle, stepper, saveGeneral });
   }
   if (keepFocus && focusedIndex >= 0) {
     const list = Nav.items().filter((el) => body.contains(el));
@@ -854,6 +893,7 @@ function editChannel(i) {
 function startSaver() {
   if (S.saverOn) return;
   S.saverOn = true;
+  S.saverPhoto = -1;
   const g = S.state.general;
   if (!S.saverScene) S.saverScene = new L.Scene($('#saver-bg'), Object.assign(sceneOpts(g), { scale: 0.5 }));
   S.saverScene.setLocation(g.lat, g.lon);
@@ -861,6 +901,7 @@ function startSaver() {
   if (S.weather?.current) S.saverScene.setWeather(S.weather);
   S.saverScene.set(Object.assign(sceneOpts(g), { scale: 0.5 }));
   S.scene?.stop();
+  if (g.saverStyle === 'minimal') S.saverScene.stop();
   $('#saver').classList.add('active');
   renderSaver(true);
 }
@@ -873,14 +914,30 @@ function stopSaver() {
   return true;
 }
 function renderSaver(move) {
-  const d = new Date(), w = S.weather;
+  const d = new Date(), w = S.weather, style = S.state.general.saverStyle || 'landschaft';
   const el = $('#saver-content');
+  $('#saver').dataset.style = style;
   let wx = '';
-  if (w && w.current) {
+  if (w && w.current && style !== 'minimal') {
     const days = (w.daily?.time || []).slice(1, 4).map((t, i) => `<div>${new Date(t).toLocaleDateString('de-DE', { weekday: 'short' })}${L.weatherIcon(w.daily.weather_code[i + 1], 1)}<b>${Math.round(w.daily.temperature_2m_max[i + 1])}° / ${Math.round(w.daily.temperature_2m_min[i + 1])}°</b></div>`).join('');
     wx = `<div class="w">${L.weatherIcon(w.current.weather_code, w.current.is_day)}<span class="t">${Math.round(w.current.temperature_2m)}°</span><span>${L.esc(w.city)} · ${L.weatherText(w.current.weather_code)}</span></div><div class="fc">${days}</div>`;
   }
-  el.innerHTML = `<div class="digits">${clockHTML(d)}</div><div class="meta"><div class="d">${L.esc(L.dateStr(d))}</div>${wx}</div>`;
+  if (style === 'analog') {
+    const hh = (d.getHours() % 12) * 30 + d.getMinutes() * 0.5, mm = d.getMinutes() * 6, ss = d.getSeconds() * 6;
+    el.innerHTML = `<svg class="analog" viewBox="-50 -50 100 100">${Array.from({ length: 12 }, (_, i) => `<line x1="0" y1="-44" x2="0" y2="${i % 3 ? -41 : -38}" transform="rotate(${i * 30})"/>`).join('')}
+      <line class="hh" x1="0" y1="4" x2="0" y2="-24" transform="rotate(${hh})"/><line class="mm" x1="0" y1="6" x2="0" y2="-36" transform="rotate(${mm})"/>
+      <line class="ss" x1="0" y1="8" x2="0" y2="-40" transform="rotate(${ss})"/><circle r="1.6"/></svg><div class="meta"><div class="d">${L.esc(L.dateStr(d))}</div>${wx}</div>`;
+  } else {
+    el.innerHTML = `<div class="digits">${clockHTML(d)}</div><div class="meta"><div class="d">${L.esc(L.dateStr(d))}</div>${wx}</div>`;
+  }
+  // Fotos: alle 20 Sekunden das nächste eigene Foto
+  if (style === 'fotos') {
+    const photos = S.state.general.customBackgrounds || [];
+    if (photos.length && (move || d.getSeconds() % 20 === 0)) {
+      S.saverPhoto = ((S.saverPhoto ?? -1) + 1) % photos.length;
+      S.saverScene?.setPhoto(photos[S.saverPhoto]);
+    }
+  }
   // Position jede Minute leicht ändern → kein Einbrennen bei OLED/Plasma
   if (move || d.getSeconds() < 1) {
     el.style.left = (6 + Math.random() * 30) + 'vw';
@@ -930,6 +987,15 @@ function handleKey(name, e) {
     case 'play':
       if (typing) return false;
       Nav.activate(); return true;
+    case 'q': case 'Q':
+      if (typing || top) return false;
+      window.quickMenu?.(); return true;
+    case 'b': case 'B':
+      if (typing || top || S.view !== 'home') return false;
+      openWeb('', 'tab', 'Brave'); return true;
+    case '/':
+      if (typing || top || S.view !== 'home') return false;
+      { const q = $('#search-inp'); if (q) Nav.focus(q); } return true;
   }
   if (/^num\d$/.test(name) && !typing && !top && S.view === 'home') {
     const n = Number(name.slice(3)) || 10;
@@ -999,7 +1065,10 @@ document.addEventListener('navfocus', (e) => {
 // Live-Ereignisse vom Hintergrunddienst
 L.events(async (ev) => {
   if (ev.type === 'volume') L.showVolume(ev);
-  else if (ev.type === 'home') goHome();
+  else if (ev.type === 'home') { $('#launching').classList.remove('show'); goHome(); }
+  else if (ev.type === 'quick') { goHome(); window.quickMenu?.(); }
+  else if (ev.type === 'incoming') window.incomingLink?.(ev);
+  else if (ev.type === 'updating') L.toast('Update wird eingespielt – der Fernseher startet gleich neu …', 15000);
   else if (ev.type === 'saver') { if (ev.on && S.view !== 'profiles') startSaver(); else if (!ev.on) stopSaver(); }
   else if (ev.type === 'config' || ev.type === 'continue' || ev.type === 'profile') {
     // Änderungen vom Handy sofort übernehmen (aber nicht mitten in einem Dialog)

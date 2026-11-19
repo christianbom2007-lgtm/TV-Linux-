@@ -1,0 +1,32 @@
+# Lichtung TV – Bootanimation "Sterne": funkelnder Nachthimmel, Schriftzug blendet ein.
+Window.SetBackgroundTopColor(0.016, 0.024, 0.045);
+Window.SetBackgroundBottomColor(0.030, 0.040, 0.040);
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+star_img = Image("glow.png").Scale(3, 3);
+n = 90;
+seed = 7;
+fun rnd() { seed = (seed * 1103 + 12345) % 65536; return seed / 65536; }
+for (i = 0; i < n; i++) {
+  star[i] = Sprite(star_img);
+  star[i].SetX(rnd() * sw);
+  star[i].SetY(rnd() * sh * 0.75);
+  ph[i] = rnd() * 6.28;
+  sp[i] = 0.03 + rnd() * 0.06;
+  star[i].SetOpacity(0);
+}
+logo_raw = Image("logo.png");
+scale = (sh * 0.10) / logo_raw.GetHeight();
+logo_img = logo_raw.Scale(logo_raw.GetWidth() * scale, logo_raw.GetHeight() * scale);
+logo = Sprite(logo_img);
+logo.SetX(sw / 2 - logo_img.GetWidth() / 2);
+logo.SetY(sh * 0.55 - logo_img.GetHeight() / 2);
+logo.SetOpacity(0);
+t = 0;
+fun refresh_callback() {
+  t = t + 1;
+  fade = t / 60; if (fade > 1) fade = 1;
+  for (i = 0; i < n; i++) star[i].SetOpacity(fade * (0.35 + 0.65 * (0.5 + 0.5 * Math.Sin(t * sp[i] + ph[i]))));
+  logo.SetOpacity(fade);
+}
+Plymouth.SetRefreshFunction(refresh_callback);

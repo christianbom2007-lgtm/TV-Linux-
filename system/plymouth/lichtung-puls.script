@@ -1,0 +1,31 @@
+# Lichtung TV – Bootanimation "Puls": der Schriftzug atmet langsam ein und aus.
+Window.SetBackgroundTopColor(0.020, 0.027, 0.024);
+Window.SetBackgroundBottomColor(0.010, 0.014, 0.012);
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+logo_raw = Image("logo.png");
+scale = (sh * 0.12) / logo_raw.GetHeight();
+logo_img = logo_raw.Scale(logo_raw.GetWidth() * scale, logo_raw.GetHeight() * scale);
+logo = Sprite(logo_img);
+logo.SetX(sw / 2 - logo_img.GetWidth() / 2);
+logo.SetY(sh / 2 - logo_img.GetHeight() / 2);
+logo.SetOpacity(0);
+dot_img = Image("glow.png").Scale(sh * 0.008, sh * 0.008);
+for (i = 0; i < 3; i++) {
+  dot[i] = Sprite(dot_img);
+  dot[i].SetX(sw / 2 - sh * 0.03 + i * sh * 0.03 - dot_img.GetWidth() / 2);
+  dot[i].SetY(sh / 2 + logo_img.GetHeight() / 2 + sh * 0.05);
+  dot[i].SetOpacity(0);
+}
+t = 0;
+fun refresh_callback() {
+  t = t + 1;
+  fade = t / 40; if (fade > 1) fade = 1;
+  logo.SetOpacity(fade * (0.65 + 0.35 * Math.Sin(t / 22)));
+  for (i = 0; i < 3; i++) {
+    a = Math.Sin(t / 10 - i * 0.9);
+    if (a < 0) a = 0;
+    dot[i].SetOpacity(fade * a);
+  }
+}
+Plymouth.SetRefreshFunction(refresh_callback);

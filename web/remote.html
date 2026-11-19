@@ -121,6 +121,19 @@
       <button class="k" data-key="mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9l5 6M21 9l-5 6"/></svg>Stumm</button>
       <button class="k" data-key="volup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 12h4M18 10v4"/></svg>Lauter</button>
     </div>
+    <div class="label">Schnell</div>
+    <div class="row">
+      <button class="btn p" id="q-brave">Brave</button>
+      <button class="btn" id="q-yt">YouTube</button>
+      <button class="btn" id="q-quick">Schnellmenü</button>
+      <button class="btn" id="q-on">TV an</button>
+    </div>
+    <div class="label">Musikbox</div>
+    <div class="row">
+      <button class="btn" data-music="previous">⏮</button><button class="btn p" data-music="play-pause">⏯</button><button class="btn" data-music="next">⏭</button>
+      <button class="btn" id="mb-open">Musikbox öffnen</button>
+    </div>
+    <p class="hint" id="mb-now">Musikbox öffnen → am Handy Bluetooth „Lichtung Musik“ wählen → Musik spielt über den Fernseher.</p>
     <div class="label">Dieses Handy spiegeln</div>
     <div class="row"><button class="btn p" id="mirror-start">Android spiegeln</button><button class="btn" id="mirror-stop">Beenden</button></div>
     <p class="hint">Voraussetzung: einmal gekoppelt (TV → Kachel „Handy spiegeln“) und Wireless-Debugging an. iPhone: Kontrollzentrum → Bildschirmsynchronisierung → „Lichtung“.</p>
@@ -141,7 +154,8 @@
   <section class="tab" id="t-text">
     <div class="label">Link aufs TV</div>
     <div class="row"><input class="inp grow" id="link" type="url" placeholder="YouTube-, Mediathek- oder Videolink einfügen"><button class="btn p" id="open-link">Öffnen</button></div>
-    <p class="hint">Tipp: Link in WhatsApp lange drücken → Kopieren → hier einfügen. YouTube-Links öffnen in der TV-Ansicht, Videodateien im Lichtung-Player.</p>
+    <div class="row" style="margin-top:8px"><button class="btn" id="tile-link">Als Kachel speichern</button></div>
+    <p class="hint">Tipp: Link in WhatsApp lange drücken → Kopieren → hier einfügen. Websites öffnen in Brave, Videodateien im Lichtung-Player. Mit KDE Connect geht es noch schneller: am Handy „Teilen → lichtung“.</p>
     <div id="recent"></div>
     <div class="label">Text an den Fernseher</div>
     <textarea class="inp" id="txt" placeholder="Suchbegriff, Adresse, Passwort …"></textarea>
@@ -173,18 +187,38 @@
     <p class="hint">Dunkle Naturfotos wirken am besten. Abdunkeln und Akzentfarbe stellst du am Fernseher unter Einstellungen → Aussehen ein.</p>
   </section>
 
+  <!-- 6 System -->
+  <section class="tab" id="t-sys">
+    <div class="label">Dieses Handy</div>
+    <div class="row"><input class="inp grow" id="phone-name" placeholder="Name, z. B. Christians S26"><button class="btn" id="phone-save">Speichern</button></div>
+    <p class="hint">Damit der Fernseher unter „Verbundene Handys“ weiß, wer wer ist.</p>
+    <div class="label">Sicherung</div>
+    <div class="row"><a class="btn p" id="backup-dl" href="#">Sicherung herunterladen</a><label class="btn">Wiederherstellen<input type="file" accept=".zip" id="restore-file" hidden></label></div>
+    <p class="hint">Kacheln, Profile, Fotos und Einstellungen als ZIP – zum Aufheben oder für einen neu installierten Laptop.</p>
+    <div class="label">Update</div>
+    <div class="row"><button class="btn p" id="upd-check">Nach Updates suchen</button><button class="btn" id="upd-run" hidden>Jetzt einspielen</button></div>
+    <p class="hint" id="upd-state">…</p>
+    <div class="row"><label class="btn">Update-Datei hochladen (.zip)<input type="file" accept=".zip,.gz,.tgz" id="upd-file" hidden></label></div>
+    <p class="hint">Privates Repo ohne Token: auf GitHub „Code → Download ZIP“ am Handy, dann hier hochladen. Der Fernseher spielt es ein und startet neu.</p>
+    <div class="label">GitHub-Zugang (optional)</div>
+    <div class="row"><input class="inp grow" id="gh-token" type="password" placeholder="Token einfügen (nur Lesen)"><button class="btn" id="gh-save">Speichern</button></div>
+    <p class="hint">Dann reicht künftig „Nach Updates suchen“ am Fernseher. Token: GitHub → Settings → Developer settings → Fine-grained token → nur dieses Repo, „Contents: Read“.</p>
+  </section>
+
   <nav class="tabs">
     <button data-tab="t-ctrl" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Steuern</button>
     <button data-tab="t-pad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 3v7"/></svg>Maus</button>
     <button data-tab="t-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Text & Link</button>
     <button data-tab="t-tiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 14v6M14 17h6"/></svg>Kacheln</button>
     <button data-tab="t-look"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18l6-7 4 5 3-3 5 5"/><circle cx="16" cy="7" r="2"/></svg>Aussehen</button>
+    <button data-tab="t-sys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>System</button>
   </nav>
 
   <div class="sheet" id="sheet"><div class="in" id="sheet-in"></div></div>
   <div class="toast" id="toast"></div>
 
   <script src="bg.js?nocommon" defer></script>
+  <script src="scene.js" defer></script>
   <script>
   'use strict';
   /* Mini-Helfer (die Fernbedienung lädt common.js nicht, um schlank zu bleiben) */
@@ -196,7 +230,7 @@
 
   function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2200); }
   async function api(path, method = 'GET', body) {
-    const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Remote-Pin': PIN }, body: body ? JSON.stringify(body) : undefined });
+    const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Remote-Pin': PIN, 'X-Remote-Name': encodeURIComponent(localStorage.getItem('lichtung-phone') || 'Handy') }, body: body ? JSON.stringify(body) : undefined });
     if (r.status === 401) { askCode(); throw new Error('Code'); }
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Fehler');
@@ -220,6 +254,7 @@
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === b.dataset.tab));
     if (b.dataset.tab === 't-tiles' || b.dataset.tab === 't-look') load();
     if (b.dataset.tab === 't-text') loadLinks();
+    if (b.dataset.tab === 't-sys') loadSys();
   });
 
   /* ---- Tasten (gedrückt halten wiederholt) ---- */
@@ -256,6 +291,53 @@
     catch (e) { toast(e.message); }
   }
   $('#open-link').onclick = () => openLink($('#link').value);
+  $('#tile-link').onclick = async () => { const u = $('#link').value.trim(); if (!u) { toast('Erst einen Link einfügen'); return; } await api('/api/open', 'POST', { url: u, asTile: true }).catch((e) => toast(e.message)); toast('Am Fernseher: Kachel prüfen und speichern'); $('#link').value = ''; };
+
+  /* ---- Schnellknöpfe & Musikbox ---- */
+  $('#q-brave').onclick = () => { buzz(); api('/api/browser/open', 'POST', { url: '', mode: 'tab' }).catch((e) => toast(e.message)); };
+  $('#q-yt').onclick = () => { buzz(); api('/api/browser/open', 'POST', { url: 'https://www.youtube.com/', mode: 'kino' }).catch((e) => toast(e.message)); };
+  $('#q-quick').onclick = () => { buzz(); api('/api/quick', 'POST', {}); };
+  $('#q-on').onclick = () => { buzz(); api('/api/screen', 'POST', { on: true }); toast('Bildschirm an'); };
+  document.querySelectorAll('[data-music]').forEach((b) => b.onclick = () => { buzz(); api('/api/music', 'POST', { action: b.dataset.music }).then((r) => { if (!r.ok) toast(r.error || 'Kein Handy verbunden'); }); });
+  $('#mb-open').onclick = () => { buzz(); api('/api/music', 'POST', { action: 'on' }); toast('Am Handy Bluetooth → „Lichtung Musik“'); };
+  setInterval(async () => {
+    if (!document.querySelector('#t-ctrl.on') || document.hidden) return;
+    const st = await api('/api/music').catch(() => null);
+    if (st && st.title) $('#mb-now').textContent = `${st.playing ? '▶' : '❚❚'} ${st.title}${st.artist ? ' · ' + st.artist : ''}`;
+  }, 4000);
+
+  /* ---- System: Name, Sicherung, Update ---- */
+  $('#phone-name').value = localStorage.getItem('lichtung-phone') || '';
+  $('#phone-save').onclick = () => { localStorage.setItem('lichtung-phone', $('#phone-name').value.trim().slice(0, 30)); toast('Gespeichert'); api('/api/state').catch(() => {}); };
+  $('#backup-dl').onclick = async (e) => {
+    e.preventDefault(); toast('Erstelle Sicherung …');
+    const r = await fetch('/api/backup', { headers: { 'X-Remote-Pin': PIN } });
+    if (!r.ok) { toast('Fehler'); return; }
+    const blob = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'lichtung-sicherung-' + new Date().toISOString().slice(0, 10) + '.zip'; a.click();
+  };
+  const readB64 = (file) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+  $('#restore-file').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f || !confirm('Sicherung einspielen? Aktuelle Kacheln und Einstellungen werden ersetzt.')) return;
+    try { await api('/api/restore', 'POST', { data: await readB64(f) }); toast('Wiederhergestellt'); load(); } catch (err) { toast(err.message); }
+  };
+  async function loadSys() {
+    const u = await api('/api/update/status').catch(() => null);
+    if (u) $('#upd-state').textContent = `Installiert: ${u.installed.version || '?'} ${u.installed.commit ? '(' + u.installed.commit.slice(0, 7) + ')' : ''} · Letztes Update: ${u.status || '–'} · GitHub-Zugang: ${u.token ? 'ja' : 'nein'}`;
+  }
+  $('#upd-check').onclick = async () => {
+    $('#upd-state').textContent = 'Prüfe …';
+    const c = await api('/api/update/check', 'POST', {}).catch((e) => ({ ok: false, error: e.message }));
+    $('#upd-state').textContent = c.ok ? (c.newer ? `Neu: ${c.message} (${c.latest})` : 'Neuester Stand ✓') : `${c.error}. ${c.hint || ''}`;
+    $('#upd-run').hidden = !(c.ok && c.newer);
+  };
+  $('#upd-run').onclick = async () => { if (!confirm('Update einspielen? Der Fernseher startet danach neu.')) return; const r = await api('/api/update/run', 'POST', {}).catch((e) => ({ error: e.message })); toast(r.ok ? 'Update läuft …' : r.error || r.msg); };
+  $('#upd-file').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f || !confirm('„' + f.name + '“ einspielen? Der Fernseher startet danach neu.')) return;
+    toast('Lade hoch …');
+    try { const r = await api('/api/update/run', 'POST', { data: await readB64(f) }); toast(r.ok ? 'Update läuft – dauert einige Minuten' : r.msg || 'Fehler'); } catch (err) { toast(err.message); }
+  };
+  $('#gh-save').onclick = async () => { try { await api('/api/update/token', 'POST', { token: $('#gh-token').value }); $('#gh-token').value = ''; toast('Gespeichert'); loadSys(); } catch (err) { toast(err.message); } };
   $('#link').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLink($('#link').value); });
   async function loadLinks() {
     const r = await api('/api/links').catch(() => ({ recent: [] }));
@@ -332,7 +414,7 @@
     list.forEach((b) => {
       const el = h('button', { class: STATE.general.background === b.id ? 'sel' : '', onclick: async () => { await api('/api/general', 'POST', { background: b.id }); toast('Hintergrund gesetzt'); load(); } }, h('span', {}, b.name));
       if (b.id.startsWith('/')) el.style.backgroundImage = `url("${b.id}")`;
-      else { const c = document.createElement('canvas'); c.width = 240; c.height = 135; L.paintScene(c.getContext('2d'), 240, 135, b.id); el.style.backgroundImage = `url(${c.toDataURL()})`; }
+      else if (L.sceneThumb) el.style.backgroundImage = `url(${L.sceneThumb(b.id, 240, 135, { lat: STATE.general.lat, lon: STATE.general.lon })})`;
       if (b.id.startsWith('/')) el.addEventListener('contextmenu', async (e) => { e.preventDefault(); if (!confirm('Foto entfernen?')) return; await api('/api/general', 'POST', { customBackgrounds: STATE.general.customBackgrounds.filter((x) => x !== b.id), background: STATE.general.background === b.id ? 'nacht' : STATE.general.background }); load(); });
       bl.append(el);
     });
@@ -350,14 +432,14 @@
   };
 
   function edit(t) {
-    const d = Object.assign({ title: '', subtitle: '', description: '', url: 'https://', tvMode: false, image: '', hue: 200 }, t || {});
+    const d = Object.assign({ title: '', subtitle: '', description: '', url: 'https://', open: 'tab', size: 'normal', image: '', hue: 200 }, t || {});
     const sheet = $('#sheet'), inn = $('#sheet-in');
     const prev = h('div', { class: 'preview' });
     const paint = () => { prev.style.backgroundImage = d.image ? `url("${d.image}")` : `linear-gradient(135deg, hsl(${d.hue} 32% 30%), hsl(${(d.hue + 25) % 360} 28% 12%))`; prev.innerHTML = ''; prev.append(h('b', {}, d.title || 'Name'), h('span', {}, d.subtitle || '')); };
     const f = (label, el) => h('label', { class: 'f' }, h('span', {}, label), el);
     const inp = (k, ph, type = 'text') => { const el = h('input', { class: 'inp', type, placeholder: ph, value: d[k] || '' }); el.oninput = () => { d[k] = el.value; paint(); }; return el; };
     const ta = h('textarea', { class: 'inp', placeholder: 'Wird am Fernseher angezeigt, wenn die Kachel ausgewählt ist' }); ta.value = d.description || ''; ta.oninput = () => (d.description = ta.value);
-    const tv = h('button', { class: 'toggle' + (d.tvMode ? ' on' : ''), onclick: (e) => { e.preventDefault(); d.tvMode = !d.tvMode; tv.classList.toggle('on', d.tvMode); } });
+    const pick = (key, opts) => h('div', { class: 'row' }, opts.map(([v, n]) => { const b = h('button', { class: 'btn' + (d[key] === v ? ' p' : ''), onclick: (e) => { e.preventDefault(); d[key] = v; b.parentNode.querySelectorAll('.btn').forEach((x) => x.classList.toggle('p', x === b)); } }, n); return b; }));
     const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
     file.onchange = async () => { if (!file.files[0]) return; d.image = await upload(file.files[0], 1280); paint(); toast('Bild hinzugefügt'); };
     inn.innerHTML = '';
@@ -366,7 +448,8 @@
       f('Untertitel', inp('subtitle', 'Kurzer Text unter dem Namen')),
       f('Beschreibung', ta),
       f('Adresse', inp('url', 'https://…', 'url')),
-      h('div', { class: 'row f' }, h('div', { class: 'grow' }, h('div', { style: { fontSize: '14px' } }, 'TV-Ansicht'), h('div', { class: 'hint', style: { margin: 0 } }, 'Für youtube.com/tv')), tv),
+      f('Öffnen als', pick('open', [['tab', 'Brave-Tab'], ['kino', 'Kino-Fenster'], ['lichtung', 'Lichtung']])),
+      f('Größe', pick('size', [['klein', 'Klein'], ['normal', 'Normal'], ['gross', 'Groß'], ['banner', 'Banner']])),
       h('div', { class: 'f' }, h('span', { style: { display: 'block', fontSize: '11px', letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '6px' } }, 'Bild'),
         h('div', { class: 'row' }, h('label', { class: 'btn p' }, 'Foto wählen', file), h('button', { class: 'btn', onclick: () => { d.image = ''; paint(); } }, 'Entfernen'))),
       h('div', { class: 'row', style: { marginTop: '18px' } },

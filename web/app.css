@@ -370,3 +370,198 @@ body.theme-neon .greet { text-shadow: 0 0 18px rgba(124,243,255,.35); }
 .theme-choice i em { flex: 1; border-radius: 5px; }
 .theme-choice.sel { outline-color: var(--ink-2); }
 .theme-choice.focused, .theme-choice:hover { outline-color: var(--accent); transform: scale(1.05); }
+
+/* ==========================================================================
+ * Version 2: Suchleiste, Knöpfe, Kachelgrößen, Logos, Programme, Schnellmenü,
+ * Design-Pakete, Musikbox, Bildschirmschoner-Stile
+ * ========================================================================== */
+.quickbar { margin-bottom: calc(.6 * var(--u)); }
+.quickbar .row { align-items: center; gap: calc(1.2 * var(--u)); padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
+.search-box { position: relative; flex: 0 0 calc(46 * var(--u)); }
+.search-box .ic { position: absolute; left: calc(1.6 * var(--u)); top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+.search-box .ic svg, .qbtn .ic svg { width: calc(2.2 * var(--u)); height: calc(2.2 * var(--u)); display: block; }
+.search-box .inp { width: 100%; padding-left: calc(5 * var(--u)); border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--line); }
+.search-box .inp.focused { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qbtn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: calc(1 * var(--u)); padding: calc(1.2 * var(--u)) calc(2 * var(--u)); border-radius: 999px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(12px); color: var(--ink-2); font-size: calc(1.45 * var(--u)); letter-spacing: .08em; transition: all .2s var(--ease); }
+.qbtn .ic { color: var(--accent); }
+.qbtn.focused, .qbtn:hover { background: var(--accent); color: #0b0d0c; border-color: var(--accent); transform: scale(1.06); }
+.qbtn.focused .ic, .qbtn:hover .ic { color: #0b0d0c; }
+
+/* Kachelgrößen */
+.tile.size-klein:not(.mk):not(.cw) { width: calc(21 * var(--u)); height: calc(13 * var(--u)); }
+.tile.size-klein .name b { font-size: calc(2.2 * var(--u)); }
+.tile.size-gross:not(.mk):not(.cw) { width: calc(38 * var(--u)); height: calc(21.5 * var(--u)); }
+.tile.size-gross .name b { font-size: calc(3.6 * var(--u)); }
+.tile.size-banner:not(.mk):not(.cw) { width: calc(60 * var(--u)); height: calc(17 * var(--u)); }
+.tile.size-banner .name b { font-size: calc(3.4 * var(--u)); }
+body.theme-kino .tile.size-gross:not(.mk):not(.cw) { width: calc(42 * var(--u)); height: calc(23.5 * var(--u)); }
+/* Logos auf Kacheln */
+.tile .art .logo { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); max-width: 46%; max-height: 46%; object-fit: contain; filter: drop-shadow(0 calc(.6 * var(--u)) calc(1.4 * var(--u)) rgba(0,0,0,.45)); border-radius: calc(.8 * var(--u)); }
+.tile .art .logo.small { width: calc(5 * var(--u)); height: calc(5 * var(--u)); max-width: none; max-height: none; top: 38%; }
+.tile.has-logo .shade { background: linear-gradient(0deg, rgba(5,7,6,.8) 0%, rgba(5,7,6,0) 45%); }
+.tile.rc { width: calc(22 * var(--u)); height: calc(13 * var(--u)); }
+.tile.rc .name b { font-size: calc(2 * var(--u)); }
+.tile-preview { display: flex; justify-content: center; margin: 0 0 calc(2.6 * var(--u)); min-height: calc(22 * var(--u)); align-items: center; }
+
+/* Programme */
+.apps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(1.4 * var(--u)); }
+.app-card { text-align: left; padding: calc(2 * var(--u)); border-radius: calc(1.4 * var(--u)); border: 1px solid var(--line); background: rgba(255,255,255,.03); transition: all .2s var(--ease); min-height: calc(10 * var(--u)); }
+.app-card b { display: block; font-family: var(--serif); font-weight: 400; font-size: calc(2.6 * var(--u)); }
+.app-card span { display: block; color: var(--ink-3); font-size: calc(1.25 * var(--u)); margin-top: calc(.6 * var(--u)); letter-spacing: .04em; }
+.app-card.off { opacity: .45; }
+.app-card.add { border-style: dashed; }
+.app-card.focused, .app-card:hover { outline: 2px solid var(--accent); outline-offset: 3px; background: rgba(255,255,255,.07); transform: scale(1.03); }
+.modal.apps-modal { width: min(calc(110 * var(--u)), 94vw); }
+
+/* Schnellmenü */
+.modal.quick-modal { width: min(calc(96 * var(--u)), 94vw); }
+.quick-grid .field { margin-bottom: calc(1.6 * var(--u)); }
+
+/* Design-Pakete */
+.pkg-choices { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(1.4 * var(--u)); }
+.pkg { position: relative; height: calc(13 * var(--u)); border-radius: calc(1.2 * var(--u)); overflow: hidden; background-size: cover; background-position: center; text-align: left; padding: calc(1.4 * var(--u)); display: flex; flex-direction: column; justify-content: flex-end; outline: 2px solid transparent; outline-offset: 3px; transition: transform .2s var(--ease), outline-color .2s; }
+.pkg::before { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(5,7,6,.88), rgba(5,7,6,.1) 70%); }
+.pkg > * { position: relative; }
+.pkg i { position: absolute; top: calc(1.2 * var(--u)); right: calc(1.2 * var(--u)); width: calc(1.6 * var(--u)); height: calc(1.6 * var(--u)); border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,.3); }
+.pkg b { font-size: calc(2.2 * var(--u)); font-weight: 400; color: #f4efe6; }
+.pkg span { font-size: calc(1.15 * var(--u)); color: rgba(244,239,230,.7); margin-top: calc(.3 * var(--u)); }
+.pkg.sel { outline-color: var(--ink-2); }
+.pkg.focused, .pkg:hover { outline-color: var(--accent); transform: scale(1.04); z-index: 1; }
+.setup-card.wide { width: min(calc(150 * var(--u)), 94vw); }
+.setup-card.see-through { background: color-mix(in srgb, var(--glass-2) 55%, transparent); }
+
+/* Wetter groß mit Vorhersage */
+.weather-chip .fc { display: none; }
+.weather-chip.big .fc { display: flex; gap: calc(1.6 * var(--u)); margin-left: calc(1.2 * var(--u)); padding-left: calc(1.8 * var(--u)); border-left: 1px solid var(--line); }
+.weather-chip.big .fc i { font-style: normal; display: flex; flex-direction: column; align-items: center; gap: calc(.3 * var(--u)); font-size: calc(1.1 * var(--u)); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.weather-chip.big .fc svg { width: calc(2.4 * var(--u)); height: calc(2.4 * var(--u)); color: var(--ink-2); }
+.weather-chip.big .fc b { font-family: var(--serif); font-weight: 400; font-size: calc(1.7 * var(--u)); color: var(--ink); letter-spacing: 0; }
+.weather-chip.big .fc small { font-size: calc(1.1 * var(--u)); color: var(--ink-3); letter-spacing: 0; }
+
+/* Bildschirmschoner-Stile */
+#saver[data-style="minimal"] .bgs { opacity: 0 !important; }
+#saver[data-style="minimal"] .sv .digits { font-size: calc(12 * var(--u)); color: rgba(239,233,223,.55); }
+#saver[data-style="minimal"] .sv .meta .d { font-size: calc(2.4 * var(--u)); color: rgba(239,233,223,.4); }
+#saver .sv .analog { width: calc(34 * var(--u)); height: calc(34 * var(--u)); stroke: var(--ink); stroke-linecap: round; fill: none; }
+#saver .sv .analog line { stroke-width: 1; opacity: .6; }
+#saver .sv .analog .hh { stroke-width: 2.6; opacity: 1; }
+#saver .sv .analog .mm { stroke-width: 1.6; opacity: 1; }
+#saver .sv .analog .ss { stroke: var(--accent); stroke-width: .8; opacity: 1; }
+#saver .sv .analog circle { fill: var(--accent); stroke: none; }
+
+/* Musikbox */
+.modal.music-modal { width: min(calc(130 * var(--u)), 94vw); background: color-mix(in srgb, var(--glass-2) 70%, transparent); }
+.musicbox { display: grid; grid-template-columns: calc(36 * var(--u)) 1fr; gap: calc(5 * var(--u)); align-items: center; }
+.mb-art { --hue: 300; width: calc(36 * var(--u)); height: calc(36 * var(--u)); border-radius: calc(2 * var(--u)); background: linear-gradient(135deg, hsl(var(--hue) 35% 30%), hsl(calc(var(--hue) + 40) 30% 10%)); background-size: cover; background-position: center; box-shadow: 0 calc(3 * var(--u)) calc(8 * var(--u)) rgba(0,0,0,.5); transition: transform 1.2s var(--ease); }
+.musicbox.playing .mb-art { animation: mbBreath 6s ease-in-out infinite; }
+@keyframes mbBreath { 50% { transform: scale(1.025); } }
+.mb-title { font-family: var(--serif); font-size: calc(6 * var(--u)); line-height: 1.05; margin-top: calc(1 * var(--u)); }
+.mb-artist { color: var(--ink-2); font-size: calc(2.2 * var(--u)); margin-top: calc(1 * var(--u)); }
+.mb-bar { height: 3px; background: var(--line); border-radius: 3px; margin: calc(3 * var(--u)) 0 calc(1 * var(--u)); overflow: hidden; }
+.mb-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 1.4s linear; }
+.mb-hint { color: var(--ink-3); font-size: calc(1.6 * var(--u)); line-height: 1.6; margin-top: calc(1.6 * var(--u)); }
+.mb-hint b { color: var(--accent); font-weight: 500; }
+#webcam-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #000; }
+#webcam-bg iframe, #webcam-bg video, #webcam-bg img { position: absolute; top: 50%; left: 50%; width: 100vw; height: 56.25vw; min-height: 100vh; min-width: 177.78vh; transform: translate(-50%, -50%); border: 0; object-fit: cover; pointer-events: none; }
+/* Systemüberwachung oben rechts */
+.stats-bar { display: flex; justify-content: flex-end; gap: calc(2 * var(--u)); margin-top: calc(1.2 * var(--u)); font-size: calc(1.15 * var(--u)); letter-spacing: .14em; color: var(--ink-3); min-height: calc(2 * var(--u)); }
+.stats-bar .st { display: inline-flex; align-items: center; gap: calc(.8 * var(--u)); }
+.stats-bar i { font-style: normal; }
+.stats-bar b { position: relative; width: calc(6 * var(--u)); height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.stats-bar b::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--accent); transition: width .8s var(--ease); }
+.stats-bar em { font-style: normal; color: var(--ink-2); letter-spacing: .04em; }
+.stats-bar em.hot { color: #e5735f; }
+
+/* ==========================================================================
+ * Design-Welten (eigene Varianten, angelehnt an bekannte Oberflächen – alles dunkel)
+ * ========================================================================== */
+/* gemeinsame Basis für die "Sans"-Welten */
+body.theme-cupertino, body.theme-one, body.theme-flamme, body.theme-konsole, body.theme-fenster, body.theme-adwaita, body.theme-breeze, body.theme-aubergine { font-family: var(--sans); }
+:is(.theme-cupertino, .theme-one, .theme-flamme, .theme-konsole, .theme-fenster, .theme-adwaita, .theme-breeze, .theme-aubergine) :is(.greet, .hero h1, .tile .name b, .setup-card h2, #profiles h2, .s-nav h2, .vclock .digits, .modal h3, .app-card b, .mb-title) { font-family: var(--sans); font-style: normal; letter-spacing: -.015em; }
+:is(.theme-cupertino, .theme-one, .theme-flamme, .theme-konsole, .theme-fenster, .theme-adwaita, .theme-breeze, .theme-aubergine) .row-label { font-family: var(--sans); }
+
+/* Cupertino – Apple-TV-Stil: große Glas-Karten, die sich beim Fokus anheben */
+body.theme-cupertino { --accent: #ffffff !important; --radius: calc(2 * var(--u)); --glass: rgba(255,255,255,.1); --glass-2: rgba(30,32,54,.82); }
+body.theme-cupertino #bg::after { background: linear-gradient(0deg, rgba(10,12,30,.8), rgba(10,12,30,.05) 55%); }
+body.theme-cupertino .greet { font-weight: 700; font-size: calc(4.6 * var(--u)); }
+body.theme-cupertino .hero h1 { font-weight: 700; }
+body.theme-cupertino .vclock { border-right: 0; }
+body.theme-cupertino .vclock .digits { font-weight: 600; font-size: calc(7 * var(--u)); }
+body.theme-cupertino .tile { box-shadow: 0 calc(1 * var(--u)) calc(3 * var(--u)) rgba(0,0,0,.35); }
+body.theme-cupertino .tile .art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.22), transparent 40%); opacity: 0; transition: opacity .3s; }
+body.theme-cupertino .focused.tile { outline: 0; transform: scale(1.12) translateY(-.8vh); box-shadow: 0 calc(3.5 * var(--u)) calc(7 * var(--u)) rgba(0,0,0,.6); }
+body.theme-cupertino .focused.tile .art::after { opacity: 1; }
+body.theme-cupertino .tile .name b { font-weight: 600; }
+body.theme-cupertino .focused.btn, body.theme-cupertino .focused.icon-btn, body.theme-cupertino .qbtn.focused, body.theme-cupertino .menu-list button.focused, body.theme-cupertino .s-nav button.focused { background: #fff; color: #111; border-color: #fff; }
+
+/* One – Samsung-TV-Stil: weiche Blautöne, abgerundet, fette Überschriften */
+body.theme-one { --accent: #3e8bff !important; --radius: calc(1.8 * var(--u)); --glass: rgba(20,40,80,.45); --glass-2: rgba(10,18,38,.92); }
+body.theme-one #bg::after { background: linear-gradient(0deg, rgba(4,8,20,.92) 5%, rgba(4,8,20,.2) 60%); }
+body.theme-one .greet { font-weight: 800; font-size: calc(5 * var(--u)); }
+body.theme-one .hero h1 { font-weight: 800; }
+body.theme-one .tile { background: #12203d; }
+body.theme-one .focused.tile { outline: 3px solid #fff; outline-offset: 4px; transform: scale(1.08); }
+body.theme-one .row-label { color: #8fb6ff; letter-spacing: .12em; font-weight: 700; }
+body.theme-one .row-label::after { display: none; }
+
+/* Flamme – Fire-TV-Stil: Nachtblau, Orange, kompakte Reihen */
+body.theme-flamme { --accent: #ff9900 !important; --radius: calc(.8 * var(--u)); --glass: rgba(20,30,48,.6); --glass-2: rgba(12,20,34,.94); }
+body.theme-flamme #bg::after { background: linear-gradient(90deg, rgba(8,14,26,.95), rgba(8,14,26,.6) 50%, rgba(8,14,26,.3)), linear-gradient(0deg, rgba(8,14,26,.95), transparent 45%); }
+body.theme-flamme .greet { font-weight: 700; font-size: calc(4.4 * var(--u)); }
+body.theme-flamme .hero h1 { font-weight: 700; }
+body.theme-flamme .focused.tile { outline: 3px solid #ff9900; outline-offset: 2px; transform: scale(1.06); box-shadow: 0 0 calc(3 * var(--u)) rgba(255,153,0,.35); }
+body.theme-flamme .row-label { color: #f4f6fa; font-weight: 700; letter-spacing: .05em; text-transform: none; font-size: calc(1.8 * var(--u)); }
+body.theme-flamme .row-label::after { display: none; }
+
+/* Konsole – Xbox-Stil: Schwarz, Neon-Grün, kantige Kacheln */
+body.theme-konsole { --accent: #3fd65b !important; --radius: calc(.3 * var(--u)); --glass: rgba(20,30,22,.55); --glass-2: rgba(8,12,9,.94); }
+body.theme-konsole #bg::after { background: linear-gradient(0deg, rgba(0,0,0,.95), rgba(0,0,0,.35) 55%); }
+body.theme-konsole .greet { font-weight: 800; text-transform: uppercase; font-size: calc(4 * var(--u)); letter-spacing: .02em; }
+body.theme-konsole .hero h1 { font-weight: 800; }
+body.theme-konsole .tile { background: #142016; }
+body.theme-konsole .focused.tile { outline: 3px solid #3fd65b; outline-offset: 0; transform: scale(1.06); box-shadow: 0 0 calc(4 * var(--u)) rgba(63,214,91,.4); }
+body.theme-konsole .focused.btn, body.theme-konsole .qbtn.focused, body.theme-konsole .menu-list button.focused, body.theme-konsole .s-nav button.focused { background: #3fd65b; color: #031005; }
+
+/* Fenster – Windows-11-Stil: Mica-Glas, 8-px-Rundung, blauer Fokus */
+body.theme-fenster { --accent: #60a5fa !important; --radius: calc(.9 * var(--u)); --glass: rgba(32,40,64,.5); --glass-2: rgba(22,28,48,.88); }
+body.theme-fenster #bg::after { background: linear-gradient(0deg, rgba(8,12,28,.85), rgba(8,12,28,.15) 60%); }
+body.theme-fenster .greet { font-weight: 600; font-size: calc(4.4 * var(--u)); }
+body.theme-fenster .tile { background: rgba(255,255,255,.06); backdrop-filter: blur(20px) saturate(1.4); border: 1px solid rgba(255,255,255,.1); }
+body.theme-fenster .focused.tile { outline: 2px solid #fff; outline-offset: 2px; transform: scale(1.05); }
+body.theme-fenster .vclock { border-right-color: rgba(255,255,255,.08); }
+
+/* Adwaita – GNOME-Stil: ruhig, stark gerundet, gedeckte Farben */
+body.theme-adwaita { --accent: #7aa2f7 !important; --radius: calc(1.6 * var(--u)); --glass: rgba(46,48,64,.6); --glass-2: rgba(36,38,50,.95); }
+body.theme-adwaita #bg::after { background: linear-gradient(0deg, rgba(24,25,34,.92), rgba(24,25,34,.3) 60%); }
+body.theme-adwaita .greet { font-weight: 700; font-size: calc(4.4 * var(--u)); }
+body.theme-adwaita .tile { background: #2e3040; }
+body.theme-adwaita .focused.tile { outline: 3px solid #7aa2f7; outline-offset: 3px; transform: scale(1.05); }
+
+/* Breeze – KDE-Plasma-Stil: klare Linien, Cyan-Blau */
+body.theme-breeze { --accent: #3daee9 !important; --radius: calc(.5 * var(--u)); --glass: rgba(35,42,50,.7); --glass-2: rgba(28,33,40,.96); }
+body.theme-breeze #bg::after { background: linear-gradient(0deg, rgba(16,20,26,.92), rgba(16,20,26,.3) 60%); }
+body.theme-breeze .greet { font-weight: 600; font-size: calc(4.4 * var(--u)); }
+body.theme-breeze .tile { background: #232a32; border: 1px solid rgba(61,174,233,.15); }
+body.theme-breeze .focused.tile { outline: 2px solid #3daee9; outline-offset: 2px; transform: scale(1.05); box-shadow: 0 0 0 calc(.6 * var(--u)) rgba(61,174,233,.18); }
+
+/* Aubergine – Ubuntu-Stil: Lila & Orange */
+body.theme-aubergine { --accent: #e95420 !important; --radius: calc(1 * var(--u)); --glass: rgba(70,20,55,.55); --glass-2: rgba(44,0,30,.94); }
+body.theme-aubergine #bg::after { background: linear-gradient(0deg, rgba(30,0,20,.9), rgba(30,0,20,.25) 60%); }
+body.theme-aubergine .greet { font-weight: 300; font-size: calc(5 * var(--u)); }
+body.theme-aubergine .tile { background: #4a1a3c; }
+body.theme-aubergine .focused.tile { outline: 3px solid #e95420; outline-offset: 3px; transform: scale(1.06); }
+
+/* Terminal – Hacker-Look: alles Monospace, grün auf schwarz */
+body.theme-matrix { --accent: #3cff6e !important; --ink: #b8ffc8; --ink-2: rgba(150,255,170,.72); --ink-3: rgba(120,255,150,.45); --line: rgba(60,255,110,.16); --radius: 0; --glass: rgba(0,20,6,.6); --glass-2: rgba(0,10,3,.95); }
+body.theme-matrix, body.theme-matrix * { font-family: var(--mono) !important; font-style: normal !important; }
+body.theme-matrix #bg::after { background: linear-gradient(90deg, rgba(0,0,0,.92), rgba(0,0,0,.55)); }
+body.theme-matrix .tile { background: #031407; border: 1px solid rgba(60,255,110,.25); }
+body.theme-matrix .tile .shade { background: linear-gradient(0deg, rgba(0,0,0,.85), transparent 70%); }
+body.theme-matrix .focused.tile { outline: 1px solid #3cff6e; outline-offset: 0; transform: scale(1.04); box-shadow: 0 0 calc(2 * var(--u)) rgba(60,255,110,.45); }
+body.theme-matrix .greet::before { content: '> '; color: #3cff6e; }
+body.theme-matrix .focused.btn, body.theme-matrix .qbtn.focused, body.theme-matrix .menu-list button.focused, body.theme-matrix .s-nav button.focused { background: #3cff6e; color: #000; }
+/* Design-Pakete: mehr Platz bei vielen Welten */
+.pkg-choices { grid-template-columns: repeat(5, 1fr); }
+.quickbar { margin-top: calc(2.4 * var(--u)); }
+.quickbar .row { overflow-x: auto; }
+.search-box .ic { z-index: 1; }

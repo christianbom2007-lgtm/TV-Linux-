@@ -47,6 +47,14 @@ async def api(page, path, method="GET", body=None):
     return await page.evaluate("""async ([p, m, b]) => { const r = await fetch(p, {method: m, headers: {'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined}); return r.json(); }""", [path, method, body])
 
 
+async def safe_shot(page, path):
+    """Screenshot, der bei hängenden Streams (Sandbox ohne Internet) nicht den ganzen Test abbricht."""
+    try:
+        await page.screenshot(path=path, timeout=8000)
+    except Exception as e:
+        print("    (Screenshot übersprungen:", str(e).splitlines()[0], ")")
+
+
 async def focused(page):
     return await page.evaluate("(() => { const c = L.Nav.current; return c ? (c.dataset.id || c.textContent.trim().slice(0, 40)) : null })()")
 
@@ -87,6 +95,13 @@ async def main():
         check("Erster Start → Einrichtungsassistent", await page.evaluate("S.view") == "setup")
         await page.screenshot(path=SHOTS + "00a_setup_welcome.png")
         await page.keyboard.press("Enter")                         # Los geht's
+        await page.wait_for_timeout(500)
+        check("Assistent: Design-Pakete mit Live-Vorschau", await page.locator("#setup .pkg").count() >= 10)
+        await page.click("#setup .pkg >> text=Nordlicht")
+        await page.wait_for_timeout(700)
+        check("Paket ändert Hintergrund sofort", (await api(page, "/api/state"))["general"]["background"] == "tundra")
+        await page.screenshot(path=SHOTS + "00a2_setup_design.png")
+        await page.click("#setup .btn.primary")                    # Gefällt mir
         await page.wait_for_timeout(300)
         await page.fill("#setup input", "Elmshorn"); await page.keyboard.press("Enter")
         await page.wait_for_timeout(500)
@@ -114,6 +129,9 @@ async def main():
         await page.wait_for_timeout(900)
         urls = [t["url"] for t in (await api(page, "/api/state"))["tiles"]]
         check("Assistent: Netflix hinzu, arte entfernt", any("netflix" in u for u in urls) and not any("arte.tv" in u for u in urls), str(urls))
+        await page.screenshot(path=SHOTS + "00d2_setup_brave.png")
+        await page.click("#setup .btn.primary")                    # Brave → Weiter
+        await page.wait_for_timeout(400)
         await page.screenshot(path=SHOTS + "00e_setup_phone.png")
         await page.click("#setup .btn.primary")
         await page.wait_for_timeout(300)
@@ -168,6 +186,9 @@ async def main():
         check("Pfeil hoch → Weiterschauen", (await page.evaluate("L.Nav.current.dataset.kind")) == "cw")
         await page.keyboard.press("ArrowUp")
         f = await page.evaluate("L.Nav.current.id")
+        check("Pfeil hoch → Suchleiste", f == "search-inp" or "qbtn" in await page.evaluate("L.Nav.current.className"), f)
+        await page.keyboard.press("ArrowUp")
+        f = await page.evaluate("L.Nav.current.id")
         check("Pfeil hoch → Knöpfe oben", f in ("btn-profile", "btn-settings", "btn-sleep"), f)
         await page.screenshot(path=SHOTS + "02_home.png")
 
@@ -192,17 +213,17 @@ async def main():
         await page.evaluate("editTile(null)")
         await page.wait_for_timeout(500)
         await page.screenshot(path=SHOTS + "04_editor.png")
-        await page.keyboard.press("ArrowRight")   # Vorlage: YouTube (normal)
-        await page.keyboard.press("Enter")
+        await page.locator(".modal input.inp").nth(0).fill("https://www.youtube.com/")
+        await page.locator(".modal input.inp").nth(1).fill("Mein YouTube")
+        await page.click(".modal .btn >> text=Groß")
+        await page.click(".modal .btn >> text=Kino-Fenster")
         await page.wait_for_timeout(200)
-        name = page.locator(".modal input.inp").first
-        await name.fill("Mein YouTube")
-        await page.evaluate("document.querySelector('.modal .btn.primary').scrollIntoView()")
-        await page.click(".modal .btn.primary")
+        await page.screenshot(path=SHOTS + "04b_editor_filled.png")
+        await page.click(".modal .btn.primary >> text=Speichern")
         await page.wait_for_timeout(700)
         tiles = (await api(page, "/api/state"))["tiles"]
         new = [t for t in tiles if t["title"] == "Mein YouTube"]
-        check("Neue Kachel gespeichert", len(new) == 1 and new[0]["url"] == "https://www.youtube.com/", str(new))
+        check("Neue Kachel gespeichert (Größe + Kino)", len(new) == 1 and new[0]["url"] == "https://www.youtube.com/" and new[0]["size"] == "gross" and new[0]["open"] == "kino", str(new))
 
         # Ziffer öffnet Kachel (Navigation abfangen)
         await page.evaluate("chooseProfile(S.state.profiles[0])")
@@ -393,7 +414,7 @@ async def main():
         # ---------- Link aufs TV ----------
         await api(page, "/api/open", "POST", {"url": "Guck mal https://youtu.be/dQw4w9WgXcQ"})
         await page.wait_for_timeout(1500)
-        check("Link vom Handy öffnet YouTube-TV-Ansicht", "youtube.com/tv#/watch?v=dQw4w9WgXcQ" in page.url, page.url)
+        check("Link vom Handy öffnet YouTube (ohne Brave: hier im Fenster)", "youtube.com/watch?v=dQw4w9WgXcQ" in page.url, page.url)
         await page.goto(BASE + "/"); await page.wait_for_timeout(1000)
 
         # ---------- Live-TV ----------
@@ -405,7 +426,7 @@ async def main():
         await live.evaluate("loadEpg()"); await live.wait_for_timeout(400)
         check("Live-TV zeigt „Jetzt“ mit Programm", "Tagesschau-Magazin" in await live.inner_text("#osd"), await live.inner_text("#osd"))
         check("Live-TV zeigt „Danach“", "Tatort" in await live.inner_text("#osd"))
-        await live.screenshot(path=SHOTS + "07a_live_epg.png")
+        await safe_shot(live, SHOTS + "07a_live_epg.png")
         n1 = await live.inner_text("#osd .nm")
         await live.keyboard.press("ArrowDown")
         await live.wait_for_timeout(500)
@@ -419,7 +440,7 @@ async def main():
         check("Live-TV: Enter öffnet Senderliste", await live.evaluate("document.getElementById('list').classList.contains('show')"))
         await live.keyboard.press("ArrowUp"); await live.keyboard.press("ArrowUp"); await live.wait_for_timeout(400)
         check("Senderliste zeigt Programmvorschau", await live.evaluate("document.getElementById('guide').classList.contains('show')"))
-        await live.screenshot(path=SHOTS + "07_live.png")
+        await safe_shot(live, SHOTS + "07_live.png")
         await live.keyboard.press("Escape")
         await live.keyboard.press("Escape")
         await live.wait_for_timeout(800)

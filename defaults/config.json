@@ -9,7 +9,6 @@
     "screensaverMinutes": 5,
     "screensaverOnPages": true,
     "profileAutoSeconds": 2,
-    "tvUserAgent": "Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH)",
     "background": "nacht",
     "customBackgrounds": [],
     "volumeStep": 5,
@@ -19,7 +18,65 @@
     "epgUrl": "https://iptv-epg.org/files/epg-de.xml",
     "setupDone": false,
     "mediathekOn": true,
-    "theme": "lichtung"
+    "theme": "lichtung",
+    "version": 2,
+    "braveScale": 1.25,
+    "braveProfiles": true,
+    "ytZoom": 1.25,
+    "ytCinema": true,
+    "ytQuality": "hd1080",
+    "normalize": true,
+    "webZoom": 1,
+    "nightMode": "aus",
+    "nightFrom": "21:00",
+    "nightTo": "06:30",
+    "nightTemp": 3800,
+    "season": false,
+    "seasonFx": true,
+    "saverStyle": "landschaft",
+    "autoOffHours": 0,
+    "autoOffAction": "screen",
+    "bigWeather": true,
+    "showRecent": true,
+    "quickbar": true,
+    "searchEngine": "brave",
+    "package": "",
+    "outputMode": "last",
+    "braveExtensions": [
+      "gebbhagfogifgggkldgodflihgfeippi",
+      "khncfooichmfjbepaaaebmommgaepoid",
+      "eimadpbcbfnmbkopoojfekhnkhdbieeh",
+      "dlnejlppicbjfcfcedcflplfjajinajd",
+      "cjpalhdlnbpafiamejdnhcphjbkeiagm"
+    ],
+    "webcamBg": "",
+    "webcams": [
+      {
+        "name": "Kiel · Hafen & Förde (Kiel Sailing City)",
+        "url": "https://kiel-sailing-city.de/en/webcam"
+      },
+      {
+        "name": "Kiel · Kieler Förde (feratel)",
+        "url": "https://www.feratel.com/en/webcams/germany/schleswig-holstein/kieler-foerde"
+      },
+      {
+        "name": "Kiel · alle Kameras (Windy)",
+        "url": "https://www.windy.com/webcams/1249043229"
+      },
+      {
+        "name": "Kiel · Live auf YouTube suchen",
+        "url": "https://www.youtube.com/results?search_query=kiel+live+webcam&sp=EgJAAQ%253D%253D"
+      },
+      {
+        "name": "Weltall · ISS live (YouTube)",
+        "url": "https://www.youtube.com/results?search_query=ISS+live+earth&sp=EgJAAQ%253D%253D"
+      },
+      {
+        "name": "Nordlicht live (YouTube)",
+        "url": "https://www.youtube.com/results?search_query=northern+lights+live&sp=EgJAAQ%253D%253D"
+      }
+    ],
+    "showStats": true
   },
   "remote": {
     "pin": ""
@@ -145,37 +202,73 @@
         {
           "id": "t-youtube",
           "title": "YouTube",
-          "subtitle": "TV-Ansicht, ohne Werbung",
-          "url": "https://www.youtube.com/tv",
-          "tvMode": true,
+          "subtitle": "Kino-Fenster in Brave, ohne Werbung",
+          "url": "https://www.youtube.com/",
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "gross",
+          "open": "kino",
           "hue": 8
+        },
+        {
+          "id": "t-brave",
+          "title": "Brave",
+          "subtitle": "Normaler Browser · suchen & surfen",
+          "url": "lichtung:browser",
+          "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "tab",
+          "hue": 20
         },
         {
           "id": "t-live",
           "title": "Live-TV",
           "subtitle": "ARD, ZDF, NDR und mehr",
           "url": "lichtung:live",
-          "tvMode": false,
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
           "hue": 205
         },
         {
-          "id": "t-mirror",
-          "title": "Handy spiegeln",
-          "subtitle": "iPhone per AirPlay, YouTube per Code",
-          "url": "lichtung:mirror",
-          "tvMode": false,
+          "id": "t-music",
+          "title": "Musikbox",
+          "subtitle": "Handy-Musik über den Fernseher",
+          "url": "lichtung:music",
           "image": "",
-          "hue": 265
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
+          "hue": 300
+        },
+        {
+          "id": "t-ambient",
+          "title": "Ambiente",
+          "subtitle": "Kaminfeuer, Regen, Aquarium, Nordlicht",
+          "url": "lichtung:ambient",
+          "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
+          "hue": 18
         },
         {
           "id": "t-ard",
           "title": "ARD Mediathek",
           "subtitle": "Filme, Serien, Dokus",
           "url": "https://www.ardmediathek.de/",
-          "tvMode": false,
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "tab",
           "hue": 220
         },
         {
@@ -183,8 +276,11 @@
           "title": "ZDF Mediathek",
           "subtitle": "Sendungen auf Abruf",
           "url": "https://www.zdf.de/",
-          "tvMode": false,
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "tab",
           "hue": 28
         },
         {
@@ -192,8 +288,11 @@
           "title": "arte",
           "subtitle": "Kultur und Dokumentationen",
           "url": "https://www.arte.tv/de/",
-          "tvMode": false,
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "tab",
           "hue": 18
         },
         {
@@ -201,9 +300,36 @@
           "title": "NDR Mediathek",
           "subtitle": "Aus dem Norden",
           "url": "https://www.ndr.de/mediathek/",
-          "tvMode": false,
           "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "tab",
           "hue": 200
+        },
+        {
+          "id": "t-mirror",
+          "title": "Handy spiegeln",
+          "subtitle": "iPhone, Android, Samsung",
+          "url": "lichtung:mirror",
+          "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
+          "hue": 265
+        },
+        {
+          "id": "t-apps",
+          "title": "Programme",
+          "subtitle": "Terminal, App-Store, Spiele",
+          "url": "lichtung:apps",
+          "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
+          "hue": 150
         }
       ],
       "continue": []
@@ -256,5 +382,35 @@
       "minMinutes": 20,
       "on": true
     }
-  ]
+  ],
+  "recorder": {
+    "on": false,
+    "keepDays": 14,
+    "quality": "hd",
+    "minFreeGB": 5,
+    "rules": [
+      {
+        "id": "r-tatort",
+        "topic": "Tatort",
+        "text": "",
+        "channels": [
+          "ARD"
+        ],
+        "minMinutes": 80,
+        "max": 2,
+        "on": true
+      },
+      {
+        "id": "r-terrax",
+        "topic": "Terra X",
+        "text": "",
+        "channels": [
+          "ZDF"
+        ],
+        "minMinutes": 30,
+        "max": 2,
+        "on": false
+      }
+    ]
+  }
 }

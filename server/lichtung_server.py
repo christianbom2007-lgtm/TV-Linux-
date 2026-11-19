@@ -24,6 +24,7 @@ hochgeladener Bilder. Fehlt etwas, läuft der Rest trotzdem weiter.
 """
 
 import base64
+import glob
 import hashlib
 import json
 import os
@@ -45,6 +46,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import extras  # noqa: E402  (Mediathek, Programmführer, Links)
 import android  # noqa: E402  (Android spiegeln mit scrcpy)
+import system  # noqa: E402  (sway, Brave, Programme, Bluetooth, KDE Connect, Updates …)
 
 # --------------------------------------------------------------------------
 # Pfade und Grundeinstellungen
@@ -82,10 +84,12 @@ CFG_LOCK = threading.RLock()  # verhindert, dass zwei Anfragen gleichzeitig schr
 
 def load_config():
     """Liest config.json. Beim allerersten Start wird die Vorlage kopiert."""
-    if not os.path.exists(CONFIG_PATH):
+    fresh_install = not os.path.exists(CONFIG_PATH)
+    if fresh_install:
         shutil.copy(DEFAULTS, CONFIG_PATH)
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
+    old_version = int((cfg.get("general") or {}).get("version", 1) or 1)
     # Fehlende neue Felder aus der Vorlage ergänzen (wichtig nach Updates)
     with open(DEFAULTS, "r", encoding="utf-8") as f:
         defaults = json.load(f)
@@ -95,11 +99,34 @@ def load_config():
     cfg["remote"].setdefault("recent", [])
     cfg.setdefault("channels", defaults["channels"])
     cfg.setdefault("mediathekRows", defaults.get("mediathekRows", []))
+    cfg.setdefault("recorder", defaults.get("recorder", {"on": False, "rules": []}))
     # Programmführer-Namen für bekannte Sender nachtragen
     known = {c["id"]: c.get("epg") for c in defaults["channels"]}
     for c in cfg["channels"]:
         if not c.get("epg") and known.get(c.get("id")):
             c["epg"] = known[c["id"]]
+    # Update auf Version 2 (Brave statt YouTube-TV-Ansicht): alte Kacheln umstellen
+    if old_version < 2 and not fresh_install:
+        for p in cfg.get("profiles", []):
+            for t in p.get("tiles", []):
+                if "youtube.com/tv" in t.get("url", ""):
+                    t.update(url="https://www.youtube.com/", open="kino", subtitle="Kino-Fenster in Brave, ohne Werbung", size="gross")
+                t.pop("tvMode", None)
+            urls = {t.get("url") for t in p.get("tiles", [])}
+            if "lichtung:browser" not in urls:
+                p["tiles"].insert(1, {"id": "t-brave", "title": "Brave", "subtitle": "Normaler Browser · suchen & surfen", "url": "lichtung:browser",
+                                      "image": "", "logo": "", "color": "", "size": "normal", "open": "tab", "hue": 20})
+            if "lichtung:music" not in urls:
+                p["tiles"].insert(3, {"id": "t-music", "title": "Musikbox", "subtitle": "Handy-Musik über den Fernseher", "url": "lichtung:music",
+                                      "image": "", "logo": "", "color": "", "size": "normal", "open": "lichtung", "hue": 300})
+            if "lichtung:ambient" not in urls:
+                p["tiles"].insert(4, {"id": "t-ambient", "title": "Ambiente", "subtitle": "Kaminfeuer, Regen, Aquarium, Nordlicht", "url": "lichtung:ambient",
+                                      "image": "", "logo": "", "color": "", "size": "normal", "open": "lichtung", "hue": 18})
+            if "lichtung:apps" not in urls:
+                p["tiles"].append({"id": "t-apps", "title": "Programme", "subtitle": "Terminal, App-Store, Spiele", "url": "lichtung:apps",
+                                   "image": "", "logo": "", "color": "", "size": "normal", "open": "lichtung", "hue": 150})
+        cfg["general"]["version"] = 2
+    cfg["general"].pop("tvUserAgent", None)
     # Fernbedienungs-Code einmalig zufällig erzeugen
     if not cfg["remote"].get("pin"):
         cfg["remote"]["pin"] = "%04d" % random.randint(0, 9999)
@@ -127,6 +154,9 @@ STATE = {
     "saver": False,            # ist der Bildschirmschoner gerade an?
     "sleep": None,             # Schlaf-Timer: {"until": Zeitpunkt, "action": "pause"|"screen"|"poweroff", "warned": bool}
     "screenOff": False,
+    "lastKey": None,           # zuletzt gedrückte Taste (für "Systeminfo" / Fehlersuche)
+    "saverReturn": None,       # Ebene, zu der nach dem Bildschirmschoner zurückgekehrt wird
+    "playingAt": 0,
 }
 
 
@@ -194,26 +224,76 @@ def run(cmd):
         return ""
 
 
+VOLUME = {"backend": None, "error": ""}   # welches Programm die Lautstärke regelt (für Systeminfo)
+
+
 def get_volume():
     out = run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])   # z. B. "Volume: 0.45 [MUTED]"
     m = re.search(r"([\d.]+)", out)
-    vol = int(round(float(m.group(1)) * 100)) if m else 50
-    return {"volume": vol, "muted": "MUTED" in out}
+    if m:
+        VOLUME["backend"] = "wpctl"
+        return {"volume": int(round(float(m.group(1)) * 100)), "muted": "MUTED" in out}
+    # Rückfall 1: pactl (PulseAudio-Befehle, gehen auch mit PipeWire)
+    out = run(["pactl", "get-sink-volume", "@DEFAULT_SINK@"])
+    m = re.search(r"(\d+)%", out)
+    if m:
+        VOLUME["backend"] = "pactl"
+        muted = "yes" in run(["pactl", "get-sink-mute", "@DEFAULT_SINK@"])
+        return {"volume": int(m.group(1)), "muted": muted}
+    # Rückfall 2: ALSA direkt
+    out = run(["amixer", "-M", "get", "Master"])
+    m = re.search(r"\[(\d+)%\]", out)
+    if m:
+        VOLUME["backend"] = "amixer"
+        return {"volume": int(m.group(1)), "muted": "[off]" in out}
+    VOLUME["backend"] = None
+    VOLUME["error"] = "Kein Tonsystem erreichbar (PipeWire läuft nicht?)"
+    return {"volume": 50, "muted": False}
 
 
 def change_volume(action):
     step = int(CONFIG["general"].get("volumeStep", 5))
-    sink = "@DEFAULT_AUDIO_SINK@"
-    if action == "up":
-        run(["wpctl", "set-mute", sink, "0"])
-        run(["wpctl", "set-volume", "-l", "1.0", sink, "%d%%+" % step])
-    elif action == "down":
-        run(["wpctl", "set-volume", sink, "%d%%-" % step])
-    elif action == "mute":
-        run(["wpctl", "set-mute", sink, "toggle"])
+    before = get_volume()
+    be = VOLUME["backend"] or "wpctl"
+    if be == "wpctl":
+        sink = "@DEFAULT_AUDIO_SINK@"
+        if action == "up":
+            run(["wpctl", "set-mute", sink, "0"])
+            run(["wpctl", "set-volume", "-l", "1.0", sink, "%d%%+" % step])
+        elif action == "down":
+            run(["wpctl", "set-volume", sink, "%d%%-" % step])
+        elif action == "mute":
+            run(["wpctl", "set-mute", sink, "toggle"])
+    elif be == "pactl":
+        sink = "@DEFAULT_SINK@"
+        if action == "up":
+            run(["pactl", "set-sink-mute", sink, "0"])
+            run(["pactl", "set-sink-volume", sink, "+%d%%" % step if before["volume"] + step <= 100 else "100%"])
+        elif action == "down":
+            run(["pactl", "set-sink-volume", sink, "-%d%%" % step])
+        elif action == "mute":
+            run(["pactl", "set-sink-mute", sink, "toggle"])
+    else:
+        arg = {"up": "%d%%+" % step, "down": "%d%%-" % step, "mute": "toggle"}[action]
+        run(["amixer", "-M", "set", "Master", arg] + (["unmute"] if action == "up" else []))
     v = get_volume()
     broadcast("volume", **v)
+    show_wob(v)
     return v
+
+
+def show_wob(v):
+    """Lautstärke-Balken über allen Programmen (wob) – nur, wenn gerade NICHT
+    die Lichtung-Startseite zu sehen ist (die hat ihre eigene Anzeige)."""
+    path = os.path.join(system.runtime_dir(), "wob.sock")
+    if not os.path.exists(path) or not SWAY.available or SWAY.focused_ws() == 1:
+        return
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_NONBLOCK)
+        os.write(fd, b"%d\n" % (0 if v["muted"] else min(100, v["volume"])))
+        os.close(fd)
+    except OSError:
+        pass
 
 
 def audio_sinks():
@@ -245,12 +325,15 @@ def audio_sinks():
 
 
 def go_home():
-    """Alle Seiten benachrichtigen: zurück zur Startseite."""
+    """Zurück zur Startseite: sway zeigt Ebene 1 (Brave & Programme laufen weiter)."""
     STATE["lastInput"] = time.time()
     try:
         ANDROID.stop_mirror()      # Android-Spiegeln beenden, falls aktiv
+        if SWAY.available:
+            SWAY.workspace(1)
     except NameError:
         pass
+    STATE["saverReturn"] = None
     broadcast("home", url=LAUNCHER_URL)
 
 
@@ -406,15 +489,23 @@ def input_watcher():
                 name = E.KEY.get(ev.code)
                 if isinstance(name, list):
                     name = name[0]
-                handle_key(name, ev.value)
+                handle_key(name, ev.value, dev.name)
 
 
-KEYSTATE = {"meta_alone": False}
+KEYSTATE = {"meta_alone": False, "wm": set()}   # wm: Tasten, die sway schon selbst meldet
 
 
-def handle_key(name, value):
+def handle_key(name, value, device=""):
     """Reagiert auf eine Taste. value: 1 = gedrückt, 2 = gehalten, 0 = losgelassen.
-    Eigene Funktion, damit man sie ohne echte Tastatur testen kann."""
+    Eigene Funktion, damit man sie ohne echte Tastatur testen kann.
+    Läuft sway, kommen Home- und Lautstärketasten über dessen Tastenkürzel –
+    dann hier nicht doppelt auswerten."""
+    if value == 1 and name and name.startswith("KEY_"):
+        STATE["lastKey"] = {"name": name, "device": device, "t": time.time(), "src": "evdev"}
+    if name in ("KEY_VOLUMEUP", "KEY_VOLUMEDOWN", "KEY_MUTE") and "volume" in KEYSTATE["wm"]:
+        return None
+    if (name in HOME_KEYS or name in META_KEYS) and "home" in KEYSTATE["wm"]:
+        return None
     if value == 1:
         if name in META_KEYS:
             KEYSTATE["meta_alone"] = True
@@ -479,6 +570,10 @@ def wake():
     if STATE["saver"]:
         STATE["saver"] = False
         broadcast("saver", on=False)
+        ret = STATE.get("saverReturn")
+        STATE["saverReturn"] = None
+        if ret and SWAY.available:
+            SWAY.workspace(ret)     # zurück zu Brave/Programm, wo man vorher war
     if STATE["screenOff"]:
         screen(True)
         broadcast("screen", on=True)
@@ -520,20 +615,60 @@ def sleep_info():
 
 EPG = extras.EPG(DATA_DIR, lambda: CONFIG)
 ANDROID = android.Android(lambda t, **d: broadcast(t, **d), wayland_env)
+SWAY = system.Sway(log)
+BRAVE = system.Brave(SWAY, DATA_DIR, APP_DIR, log)
+APPS = system.Apps(SWAY)
+NIGHT = system.Night(wayland_env, log)
+BT = system.Bluetooth()
+UPDATER = system.Updater(DATA_DIR, APP_DIR, log)
+REMOTES = {}   # verbundene Handys: Name → {"ip", "seen"}
+
+
+def on_call(event):
+    """Handy klingelt (KDE Connect) → alles pausieren."""
+    log("Anruf am Handy – pausiere")
+    system.pause_all_media()
+    broadcast("pause", reason="call")
+
+
+KDEC = system.KDEConnect(on_call, log)
+MUSIC = system.MusicBox(log)
+STATS = system.Stats()
+REC_DIR = os.path.join(DATA_DIR, "aufnahmen")
+REC = system.Recorder(REC_DIR, lambda: CONFIG, lambda: save_config(), extras.mediathek_row, lambda t, **d: broadcast(t, **d), log)
 
 
 def idle_watcher():
-    """Schaltet den Bildschirmschoner ein, wenn lange nichts passiert ist und
-    kein Video läuft. Ausgeschaltet wird er bei der nächsten Eingabe."""
+    """Bildschirmschoner, wenn lange nichts passiert ist und kein Video läuft.
+    Zusätzlich 'Auto-Aus': nach X Stunden ohne Eingabe Bildschirm aus oder ganz aus."""
     while True:
         time.sleep(5)
-        minutes = float(CONFIG["general"].get("screensaverMinutes", 5) or 0)
-        if minutes <= 0:
-            continue
+        g = CONFIG["general"]
         idle = time.time() - STATE["lastInput"]
-        if not STATE["saver"] and not STATE["playing"] and idle > minutes * 60:
-            STATE["saver"] = True
-            broadcast("saver", on=True)
+        playing = STATE["playing"] and time.time() - STATE.get("playingAt", 0) < 90
+        minutes = float(g.get("screensaverMinutes", 5) or 0)
+        if minutes > 0 and not STATE["saver"] and idle > minutes * 60:
+            if not playing and not system.media_playing():
+                ws = SWAY.focused_ws() if SWAY.available else 1
+                if ws in (None, 1) or g.get("screensaverOnPages", True):
+                    if ws not in (None, 1):
+                        STATE["saverReturn"] = ws
+                        SWAY.workspace(1)
+                    STATE["saver"] = True
+                    broadcast("saver", on=True)
+        hours = float(g.get("autoOffHours", 0) or 0)
+        if hours > 0 and idle > hours * 3600 and not STATE.get("autoOffDone"):
+            if not playing and not system.media_playing():
+                STATE["autoOffDone"] = True
+                log("Auto-Aus nach %.1f Std. ohne Eingabe" % hours)
+                broadcast("sleep", action=g.get("autoOffAction", "screen"))
+                time.sleep(3)
+                if g.get("autoOffAction") == "poweroff":
+                    subprocess.Popen(["systemctl", "poweroff"])
+                else:
+                    screen(False)
+        if idle < 60:
+            STATE["autoOffDone"] = False
 
 
 def lan_ip():
@@ -618,7 +753,22 @@ class Handler(BaseHTTPRequestHandler):
             return True
         pin = self.headers.get("X-Remote-Pin") or urllib.parse.parse_qs(
             urllib.parse.urlparse(self.path).query).get("pin", [""])[0]
-        return pin == CONFIG["remote"]["pin"]
+        ok = pin == CONFIG["remote"]["pin"]
+        if ok:
+            # Mehrere Handys: jedes meldet seinen Namen mit → Liste "Verbundene Handys"
+            name = urllib.parse.unquote(self.headers.get("X-Remote-Name") or "")[:30] or "Handy"
+            REMOTES[name] = {"ip": self.client_address[0], "seen": time.time()}
+        return ok
+
+    def send_bytes(self, data, ctype, filename=None):
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        if filename:
+            self.send_header("Content-Disposition", 'attachment; filename="%s"' % filename)
+        self.end_headers()
+        self.wfile.write(data)
 
     def send_json(self, obj, status=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -652,6 +802,41 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_range(self, path):
+        """Videodatei mit 'Range'-Unterstützung (zum Spulen in Aufnahmen)."""
+        if not os.path.isfile(path) or not path.endswith(".mp4"):
+            return self.send_error(404)
+        size = os.path.getsize(path)
+        start, end = 0, size - 1
+        m = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+        if m:
+            if m.group(1):
+                start = int(m.group(1))
+                end = int(m.group(2)) if m.group(2) else size - 1
+            elif m.group(2):
+                start = max(0, size - int(m.group(2)))
+            end = min(end, size - 1)
+            self.send_response(206)
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        else:
+            self.send_response(200)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        try:
+            with open(path, "rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(1 << 20, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -670,6 +855,9 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith("/data/images/"):
                 name = os.path.basename(path)
                 return self.send_file(os.path.join(IMG_DIR, name))
+            if path.startswith("/data/rec/"):
+                name = os.path.basename(urllib.parse.unquote(path))
+                return self.send_range(os.path.join(REC_DIR, name))
             if path in ("/", ""):
                 path = "/index.html"
             if path == "/remote":
@@ -722,18 +910,91 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(data.get("results", []))
             except Exception:
                 return self.send_json([])
-        if path == "/api/ext-config":
-            # Für die Firefox-Erweiterung: welche Seiten sollen sich als Fernseher ausgeben?
-            matches = []
-            for p in CONFIG["profiles"]:
-                for t in p["tiles"]:
-                    if t.get("tvMode") and t["url"].startswith("http"):
-                        host = urllib.parse.urlparse(t["url"]).hostname or ""
-                        if host and host not in matches:
-                            matches.append(host)
+        if path == "/api/brave/config":
+            # Für die Brave-Erweiterung: Zoom, Kinomodus, Qualität, Lautstärke-Ausgleich
             g = CONFIG["general"]
-            return self.send_json({"launcher": LAUNCHER_URL, "tvHosts": matches, "ua": g["tvUserAgent"],
-                                   "saverOnPages": g.get("screensaverOnPages", True)})
+            return self.send_json({"ytZoom": g.get("ytZoom", 1.25), "ytCinema": g.get("ytCinema", True),
+                                   "ytQuality": g.get("ytQuality", "hd1080"), "normalize": g.get("normalize", True),
+                                   "webZoom": g.get("webZoom", 1)})
+        if path == "/api/browser/status":
+            return self.send_json({"available": BRAVE.available, "running": bool(BRAVE.running_dirs()), "sway": SWAY.available, "hello": SWAY.hello})
+        if path == "/api/recent":
+            g = CONFIG["general"]
+            return self.send_json({"items": BRAVE.history(g, STATE["active"], int(qs.get("n", ["16"])[0]))})
+        if path == "/api/bookmarks":
+            return self.send_json({"items": BRAVE.bookmarks(CONFIG["general"], STATE["active"])})
+        if path == "/api/apps":
+            return self.send_json({"apps": APPS.list()})
+        if path == "/api/bt":
+            return self.send_json(BT.status())
+        if path == "/api/kdeconnect":
+            return self.send_json({"available": KDEC.available, "devices": KDEC.devices()})
+        if path == "/api/sysinfo":
+            lk = STATE.get("lastKey")
+            return self.send_json(system.sysinfo({
+                "lichtung": UPDATER.installed(), "evdev": HAVE_EVDEV, "uinput": bool(UINPUT), "sway": SWAY.available,
+                "wmKeys": sorted(KEYSTATE["wm"]), "volume": dict(get_volume(), **VOLUME),
+                "lastKey": dict(lk, ago=int(time.time() - lk["t"])) if lk else None,
+                "night": NIGHT.available, "bluetooth": BT.available, "kdeconnect": KDEC.available,
+                "brave": BRAVE.version() if BRAVE.available else "", "ip": lan_ip()}))
+        if path == "/api/siteinfo":
+            return self.send_json(system.siteinfo(qs.get("url", [""])[0][:500]))
+        if path == "/api/remotes":
+            now = time.time()
+            return self.send_json({"items": [{"name": n, "ip": r["ip"], "ago": int(now - r["seen"])} for n, r in sorted(REMOTES.items(), key=lambda x: -x[1]["seen"])]})
+        if path == "/api/backup":
+            stamp = time.strftime("%Y-%m-%d")
+            return self.send_bytes(system.backup_zip(DATA_DIR), "application/zip", "lichtung-sicherung-%s.zip" % stamp)
+        if path == "/api/update/status":
+            return self.send_json({"installed": UPDATER.installed(), "status": UPDATER.status(), "token": bool(UPDATER.token())})
+        if path == "/api/boot":
+            rc, menu = system.admin("grub-menu-status", timeout=5)
+            rc2, ply = system.admin("plymouth-status", timeout=5)
+            cur, _, job = ply.strip().partition("|")
+            themes = sorted(os.path.basename(d) for d in glob.glob("/usr/share/plymouth/themes/*") if os.path.isdir(d))
+            return self.send_json({"menu": menu.strip() == "on", "theme": cur.strip(), "job": job.strip(), "themes": themes, "admin": rc == 0})
+        if path == "/api/music":
+            return self.send_json(MUSIC.status())
+        if path == "/api/services":
+            rc, rs = system.admin("runner-status", timeout=8)
+            st, job, url = (rs.strip().split("|") + ["", "", ""])[:3] if rc == 0 else ("fehlt", "", "")
+            rc2, ag = system.admin("adguard", "status", timeout=8)
+            ag_lines = ag.strip().splitlines()
+            dienste = {}
+            for n in ("tailscale", "vaultwarden", "syncthing", "kuma", "gitea"):
+                rcd, out = system.admin("dienst", n, "status", timeout=8)
+                dienste[n] = out.strip().splitlines()[-1] if rcd == 0 and out.strip() else "fehlt"
+            ts = {}
+            if shutil.which("tailscale"):
+                rct, out = system.run(["tailscale", "status", "--json"], timeout=5)
+                try:
+                    j = json.loads(out)
+                    ts = {"state": j.get("BackendState"), "name": ((j.get("Self") or {}).get("DNSName") or "").rstrip("."),
+                          "ips": (j.get("Self") or {}).get("TailscaleIPs") or []}
+                except Exception:
+                    ts = {}
+            return self.send_json({"runner": {"state": st, "job": job, "url": url}, "adguard": {"installed": rc2 == 0 or "inactive" in ag or "active" in ag,
+                                   "active": bool(ag_lines) and ag_lines[0] == "active", "setup": "eingerichtet" in ag}, "ip": lan_ip(),
+                                   "dienste": dienste, "tailscale": ts})
+        if path == "/api/stats":
+            return self.send_json(STATS.sample())
+        if path == "/api/mediathek/random":
+            # Zufallsdoku: lange Dokus aus Terra X, arte, ZDFinfo, ARD …
+            pools = [{"topic": "Terra X", "minMinutes": 40}, {"channels": ["ARTE.DE"], "text": "doku", "minMinutes": 45},
+                     {"channels": ["ZDFinfo"], "minMinutes": 40}, {"text": "dokumentation", "minMinutes": 40}, {"channels": ["3Sat"], "text": "doku", "minMinutes": 40},
+                     {"topic": "Universum", "minMinutes": 40}, {"topic": "planet e.", "minMinutes": 25}, {"topic": "Abenteuer Erde", "minMinutes": 40}]
+            random.shuffle(pools)
+            for pool in pools[:3]:
+                items = extras.mediathek_row(dict(pool, size=40))
+                if items:
+                    return self.send_json(random.choice(items))
+            return self.send_json({"error": "Mediathek gerade nicht erreichbar"}, 503)
+        if path == "/api/recorder":
+            return self.send_json({"config": CONFIG.get("recorder", {}), "items": REC.list(), "busy": REC.busy,
+                                   "progress": REC.progress, "freeGB": round(REC.free_gb(), 1)})
+        if path == "/api/miracast":
+            rc, out = system.admin("miracast", "status", timeout=5)
+            return self.send_json({"installed": rc == 0, "state": out.strip()})
         if path == "/api/continue/lookup":
             key = norm_key(qs.get("url", [""])[0])
             item = next((c for c in active_profile().get("continue", []) if c["key"] == key), None)
@@ -755,6 +1016,12 @@ class Handler(BaseHTTPRequestHandler):
             "airplay": bool(shutil.which("uxplay")),
             "android": ANDROID.available,
             "mediathekRows": CONFIG.get("mediathekRows", []),
+            "brave": BRAVE.available,
+            "sway": SWAY.available,
+            "kdeconnect": KDEC.available,
+            "bluetooth": BT.available,
+            "night": NIGHT.available,
+            "version": UPDATER.installed().get("version", "?"),
         }
 
     def sse(self):
@@ -870,19 +1137,7 @@ class Handler(BaseHTTPRequestHandler):
 
             # ----- Kacheln -----
             if path == "/api/tiles" and method == "POST":
-                t = body.get("tile", {})
-                clean = {
-                    "id": t.get("id") or new_id("t"),
-                    "title": (t.get("title") or "Neue Kachel")[:40],
-                    "subtitle": (t.get("subtitle") or "")[:80],
-                    "description": (t.get("description") or "")[:400],
-                    "url": (t.get("url") or "").strip(),
-                    "tvMode": bool(t.get("tvMode")),
-                    "image": t.get("image") or "",
-                    "hue": int(t["hue"] if t.get("hue") is not None else 200) % 360,
-                }
-                if clean["url"] and not re.match(r"^(https?://|lichtung:)", clean["url"]):
-                    clean["url"] = "https://" + clean["url"]
+                clean = clean_tile(body.get("tile", {}))
                 existing = next((x for x in prof["tiles"] if x["id"] == clean["id"]), None)
                 if existing:
                     existing.update(clean)
@@ -909,13 +1164,20 @@ class Handler(BaseHTTPRequestHandler):
             # ----- Allgemeine Einstellungen & Sender -----
             if path == "/api/general":
                 allowed = {"city", "lat", "lon", "accent", "dim", "screensaverMinutes", "screensaverOnPages",
-                           "profileAutoSeconds", "tvUserAgent", "background", "volumeStep", "customBackgrounds",
-                           "motion", "weatherFx", "aurora", "epgUrl", "setupDone", "mediathekOn", "theme"}
+                           "profileAutoSeconds", "background", "volumeStep", "customBackgrounds",
+                           "motion", "weatherFx", "aurora", "epgUrl", "setupDone", "mediathekOn", "theme",
+                           "braveScale", "braveProfiles", "ytZoom", "ytCinema", "ytQuality", "normalize", "webZoom",
+                           "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle",
+                           "autoOffHours", "autoOffAction", "bigWeather", "showRecent", "quickbar", "searchEngine",
+                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats"}
                 for k, v in body.items():
                     if k in allowed:
                         CONFIG["general"][k] = v
                 WEATHER_CACHE["t"] = 0
                 save_config()
+                NIGHT.apply(CONFIG["general"])
+                if "braveScale" in body:
+                    BRAVE.restart()      # neue Größe greift beim nächsten Öffnen
                 broadcast("config")
                 return self.send_json(CONFIG["general"])
 
@@ -952,7 +1214,14 @@ class Handler(BaseHTTPRequestHandler):
                 del rec[8:]
                 save_config()
                 wake()
-                broadcast("open", url=url, label=label)
+                if body.get("asTile"):
+                    broadcast("incoming", url=url, label=label, tile=True)
+                elif url.startswith("http") and BRAVE.available:
+                    BRAVE.open(CONFIG["general"], STATE["active"], url, "tab")   # Webseiten → Brave
+                else:
+                    if SWAY.available:
+                        SWAY.workspace(1)
+                    broadcast("open", url=url, label=label)          # Videodateien → Lichtung-Player
                 return self.send_json({"ok": True, "url": url, "label": label})
 
             if path == "/api/remote/newpin":
@@ -977,12 +1246,17 @@ class Handler(BaseHTTPRequestHandler):
         # ----- Dinge ohne Konfigurationsänderung -----
         if path == "/api/activity":
             STATE["playing"] = bool(body.get("playing"))
+            STATE["playingAt"] = time.time()
             if body.get("input"):
                 wake()
             return self.send_json({"ok": True})
 
         if path == "/api/key":
             key = body.get("key", "")
+            if body.get("src") == "wm":
+                # Tastenkürzel von sway: ab jetzt nicht mehr zusätzlich über evdev auswerten
+                KEYSTATE["wm"].add("home" if key == "home" else "volume")
+                STATE["lastKey"] = {"name": key, "device": "sway", "t": time.time(), "src": "wm"}
             wake()
             if key == "home":
                 go_home()
@@ -992,6 +1266,183 @@ class Handler(BaseHTTPRequestHandler):
                 if not tap(REMOTE_KEYS[key]):
                     broadcast("remotekey", key=key)   # Fallback ohne uinput: Seite reagiert selbst
             return self.send_json({"ok": True})
+
+        if path == "/api/wm":
+            SWAY.hello = True
+            KEYSTATE["wm"].update({"home", "volume"})
+            NIGHT.apply(CONFIG["general"])
+            log("sway meldet sich – Tasten kommen jetzt über sway")
+            return self.send_json({"ok": True})
+
+        if path == "/api/quick":
+            if SWAY.available:
+                SWAY.workspace(1)
+            wake()
+            broadcast("quick")
+            return self.send_json({"ok": True})
+
+        if path == "/api/browser/open":
+            url = (body.get("url") or "").strip()
+            if url and not re.match(r"^https?://", url):
+                url = "https://" + url
+            res = BRAVE.open(CONFIG["general"], STATE["active"], url, body.get("mode") or "tab")
+            return self.send_json(res, 200 if res.get("ok") else 503)
+        if path == "/api/browser/restart":
+            return self.send_json(BRAVE.restart())
+
+        if path == "/api/apps/launch":
+            res = APPS.launch(body.get("id", ""))
+            return self.send_json(res, 200 if res.get("ok") else 400)
+
+        if path == "/api/incoming":
+            # Link von außen (KDE Connect "Teilen", xdg-open) → Fernseher fragt: öffnen oder Kachel?
+            url, label = extras.normalize_link(body.get("url", ""))
+            if not url:
+                return self.send_json({"error": "Kein Link"}, 400)
+            if SWAY.available:
+                SWAY.workspace(1)
+            wake()
+            broadcast("incoming", url=url, label=label)
+            return self.send_json({"ok": True})
+
+        if path == "/api/bt":
+            if not BT.available:
+                return self.send_json({"ok": False, "error": "Bluetooth ist nicht installiert"}, 503)
+            return self.send_json(BT.action(body.get("action", ""), body.get("mac")))
+
+        if path == "/api/kdeconnect":
+            return self.send_json(KDEC.action(body.get("action", ""), body.get("id"), body.get("url")))
+
+        if path == "/api/restore":
+            raw = body.get("data", "")
+            if "," in raw:
+                raw = raw.split(",", 1)[1]
+            try:
+                system.restore_zip(base64.b64decode(raw), DATA_DIR)
+            except Exception as e:
+                return self.send_json({"ok": False, "error": str(e)[:200]}, 400)
+            with CFG_LOCK:
+                fresh = load_config()
+                CONFIG.clear()
+                CONFIG.update(fresh)
+                save_config()
+            broadcast("config")
+            return self.send_json({"ok": True})
+
+        if path == "/api/update/check":
+            return self.send_json(UPDATER.check())
+        if path == "/api/update/token":
+            try:
+                UPDATER.set_token(body.get("token", ""))
+            except ValueError as e:
+                return self.send_json({"ok": False, "error": str(e)}, 400)
+            return self.send_json({"ok": True, "token": bool(UPDATER.token())})
+        if path == "/api/update/run":
+            if body.get("data"):
+                raw = body["data"].split(",", 1)[1] if "," in body["data"] else body["data"]
+                res = UPDATER.from_upload(base64.b64decode(raw))
+            else:
+                res = UPDATER.from_github()
+            if res.get("ok"):
+                broadcast("updating")
+            return self.send_json(res, 200 if res.get("ok") else 400)
+
+        if path == "/api/boot":
+            if "menu" in body:
+                rc, out = system.admin("grub-menu", "on" if body["menu"] else "off", timeout=60)
+            elif body.get("theme"):
+                rc, out = system.admin("plymouth", body["theme"], timeout=20)
+            else:
+                return self.send_json({"ok": False}, 400)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()[-200:]}, 200 if rc == 0 else 400)
+
+        if path == "/api/miracast":
+            rc, out = system.admin("miracast", "start" if body.get("on") else "stop", timeout=20)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()[-200:]})
+
+        if path == "/api/music":
+            a = body.get("action", "")
+            if a == "on":
+                res = MUSIC.start()
+            elif a == "off":
+                res = MUSIC.stop()
+            else:
+                res = MUSIC.control(a)
+            return self.send_json(res)
+
+        if path == "/api/recorder":
+            r = CONFIG.setdefault("recorder", {"on": False, "rules": []})
+            for k in ("on", "keepDays", "quality", "minFreeGB"):
+                if k in body:
+                    r[k] = body[k]
+            if "rules" in body:
+                rules = []
+                for x in body["rules"][:20]:
+                    if not (x.get("topic") or x.get("text")):
+                        continue
+                    rules.append({"id": x.get("id") or new_id("r"), "topic": (x.get("topic") or "")[:60], "text": (x.get("text") or "")[:60],
+                                  "channels": [c for c in (x.get("channels") or []) if isinstance(c, str)][:8],
+                                  "minMinutes": int(x.get("minMinutes") or 10), "max": max(1, min(5, int(x.get("max") or 2))), "on": x.get("on", True) is not False})
+                r["rules"] = rules
+            save_config()
+            if r.get("on") and body.get("runNow"):
+                threading.Thread(target=REC.tick, daemon=True).start()
+            return self.send_json({"ok": True, "config": r})
+        if path == "/api/recorder/delete":
+            return self.send_json(REC.delete(str(body.get("id", ""))))
+
+        if path == "/api/runner":
+            if body.get("remove"):
+                rc, out = system.admin("runner-remove", timeout=60)
+            else:
+                rc, out = system.admin("runner-setup", body.get("url", ""), input=(body.get("token", "") + "\n"), timeout=600)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()[-300:]}, 200 if rc == 0 else 400)
+        if path == "/api/dienst":
+            name = body.get("name", "")
+            if name not in ("tailscale", "vaultwarden", "syncthing", "kuma", "gitea"):
+                return self.send_json({"ok": False}, 400)
+            rc, out = system.admin("dienst", name, "on" if body.get("on") else "off", timeout=60)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()[-200:]})
+        if path == "/api/tailscale/login":
+            rc, out = system.admin("tailscale-login", timeout=30)
+            url = (re.findall(r"https://login\.tailscale\.com/\S+", out) or [""])[0]
+            return self.send_json({"ok": bool(url), "url": url, "msg": out.strip()[-200:]})
+        if path == "/api/vaultwarden/https":
+            rc, out = system.admin("vaultwarden-https", timeout=30)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()[-300:]})
+        if path == "/api/adguard":
+            rc, out = system.admin("adguard", "on" if body.get("on") else "off", timeout=30)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()})
+
+        if path == "/api/wol":
+            rc, out = system.admin("wol", "on" if body.get("on") else "off", timeout=20)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()})
+
+        if path == "/api/brave/extensions":
+            ids = [i for i in body.get("ids", []) if re.match(r"^[a-p]{32}$", i)]
+            CONFIG["general"]["braveExtensions"] = ids
+            save_config()
+            rc, out = system.admin("brave-extensions", ",".join(ids), timeout=10)
+            return self.send_json({"ok": rc == 0, "msg": out.strip()})
+
+        if path == "/api/siteinfo/logo":
+            # Logo einer Website herunterladen und lokal speichern
+            return self.send_json({"url": system.fetch_image(body.get("url", ""), IMG_DIR)})
+
+        if path == "/api/tiles/import":
+            with CFG_LOCK:
+                prof = active_profile()
+                n = 0
+                for it in body.get("items", [])[:40]:
+                    url = (it.get("url") or "").strip()
+                    if not url.startswith("http") or any(t["url"] == url for t in prof["tiles"]):
+                        continue
+                    prof["tiles"].append(clean_tile({"title": it.get("title") or urllib.parse.urlparse(url).hostname, "url": url,
+                                                     "logo": it.get("logo", ""), "color": it.get("color", ""), "hue": random.choice([8, 28, 100, 150, 200, 225, 265, 340])}))
+                    n += 1
+                save_config()
+            broadcast("config")
+            return self.send_json({"ok": True, "added": n})
 
         if path == "/api/audio":
             run(["wpctl", "set-default", str(int(body.get("id", 0)))])
@@ -1048,14 +1499,39 @@ class Handler(BaseHTTPRequestHandler):
                 subprocess.Popen(["systemctl", "reboot"])
             elif action == "restart-browser":
                 subprocess.Popen(["pkill", "-f", "firefox"])
+                BRAVE.restart()
             return self.send_json({"ok": True})
 
         return self.send_json({"error": "unbekannt"}, 404)
 
 
+TILE_SIZES = ("klein", "normal", "gross", "banner")
+TILE_OPEN = ("tab", "kino", "lichtung")
+
+
+def clean_tile(t):
+    """Kachel prüfen und nur erlaubte Felder übernehmen."""
+    clean = {
+        "id": t.get("id") or new_id("t"),
+        "title": (t.get("title") or "Neue Kachel")[:40],
+        "subtitle": (t.get("subtitle") or "")[:80],
+        "description": (t.get("description") or "")[:400],
+        "url": (t.get("url") or "").strip(),
+        "image": t.get("image") or "",
+        "logo": t.get("logo") or "",
+        "color": t.get("color") if re.match(r"^#[0-9a-fA-F]{3,8}$", t.get("color") or "") else "",
+        "size": t.get("size") if t.get("size") in TILE_SIZES else "normal",
+        "open": t.get("open") if t.get("open") in TILE_OPEN else "tab",
+        "hue": int(t["hue"] if t.get("hue") is not None else 200) % 360,
+    }
+    if clean["url"] and not re.match(r"^(https?://|lichtung:|app:)", clean["url"]):
+        clean["url"] = "https://" + clean["url"]
+    return clean
+
+
 def norm_key(url):
     """Macht aus einer URL einen eindeutigen Schlüssel fürs Weiterschauen.
-    Bei YouTube zählt nur die Video-ID (egal ob normale oder TV-Ansicht)."""
+    Bei YouTube zählt nur die Video-ID."""
     m = re.search(r"[?&#/]v=([\w-]{6,})", url) or re.search(r"youtu\.be/([\w-]{6,})", url)
     if m and "youtu" in url:
         return "yt:" + m.group(1)
@@ -1123,6 +1599,10 @@ def main():
     threading.Thread(target=idle_watcher, daemon=True).start()
     threading.Thread(target=sleep_watcher, daemon=True).start()
     EPG.start()
+    SWAY.start_watch(lambda: broadcast("home", url=LAUNCHER_URL), lambda: CONFIG["general"].get("outputMode", "last"))
+    KDEC.start_call_monitor()
+    REC.start()
+    threading.Timer(8, lambda: NIGHT.apply(CONFIG["general"])).start()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server.daemon_threads = True
     log("Lichtung TV läuft auf http://%s:%d  (Handy: /remote, Code %s)" % (lan_ip(), PORT, CONFIG["remote"]["pin"]))

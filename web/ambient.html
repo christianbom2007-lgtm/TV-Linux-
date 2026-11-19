@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Lichtung · Ambiente</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+  .bar { position: fixed; left: 50%; bottom: 5vh; transform: translateX(-50%); display: flex; gap: 1.4vh; padding: 1vh; border-radius: 999px; background: rgba(10,12,11,.55); backdrop-filter: blur(14px); border: 1px solid rgba(239,233,223,.12); transition: opacity .6s; }
+  .bar.hide { opacity: 0; }
+  .bar button { font: 1.6vh var(--mono, monospace); letter-spacing: .12em; text-transform: uppercase; color: rgba(239,233,223,.75); background: transparent; border: 0; padding: 1.2vh 2.2vh; border-radius: 999px; cursor: pointer; }
+  .bar button.on { background: #c8a26b; color: #0b0d0c; }
+  .info { position: fixed; left: 5vh; top: 5vh; color: rgba(239,233,223,.8); font-family: Fraunces, Georgia, serif; transition: opacity .6s; }
+  .info.hide { opacity: 0; }
+  .info b { display: block; font-weight: 300; font-style: italic; font-size: 6vh; }
+  .info span { font: 1.5vh ui-monospace, monospace; letter-spacing: .25em; text-transform: uppercase; color: rgba(239,233,223,.5); }
+  .clock { position: fixed; right: 5vh; top: 4vh; color: rgba(239,233,223,.55); font: 300 5vh Fraunces, Georgia, serif; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="info" id="info"><b id="name"></b><span>← → wechseln · ↑ ↓ Klang · OK = Klang an/aus · Zurück = Startseite</span></div>
+<div class="clock" id="clock"></div>
+<div class="bar" id="bar"></div>
+<script src="common.js"></script>
+<script src="scene.js"></script>
+<script>
+/* Lichtung TV – Ambiente: gemütliche, bewegte Bilder mit passendem Klang.
+ * Alles wird per Code gezeichnet und der Klang per WebAudio erzeugt –
+ * keine Videodateien, kein Internet nötig, wenig Leistung. */
+'use strict';
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+let W, H, DPR = 0.5;   // halbe Auflösung reicht und spart Leistung
+function size() { W = c.width = Math.round(innerWidth * DPR); H = c.height = Math.round(innerHeight * DPR); scenes[cur].init && scenes[cur].init(); }
+const R = Math.random;
+
+/* ---------- Klang (Rauschen + Filter + Knistern) ---------- */
+let ac = null, master = null, soundOn = true, vol = 0.5, nodes = [];
+function noise(type) {
+  const len = ac.sampleRate * 4, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; if (type === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w; }
+  const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; return s;
+}
+function stopSound() { nodes.forEach((n) => { try { n.stop ? n.stop() : n.disconnect(); } catch (_) {} }); nodes = []; clearInterval(crackleT); }
+let crackleT;
+function startSound(kind) {
+  stopSound();
+  if (!soundOn) return;
+  if (!ac) { ac = new AudioContext(); master = ac.createGain(); master.connect(ac.destination); }
+  master.gain.value = vol;
+  const add = (src, freq, q, gain, ftype = 'lowpass') => { const f = ac.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q; const g = ac.createGain(); g.gain.value = gain; src.connect(f).connect(g).connect(master); src.start(); nodes.push(src); return g; };
+  if (kind === 'fire') {
+    add(noise('brown'), 500, 0.6, 0.5);
+    crackleT = setInterval(() => {          // Knistern: kurze, zufällige Klicks
+      if (R() > 0.55) return;
+      const b = ac.createBuffer(1, 600, ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < 600; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (40 + R() * 80));
+      const s = ac.createBufferSource(); s.buffer = b; const g = ac.createGain(); g.gain.value = 0.15 + R() * 0.5; const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 900 + R() * 2000;
+      s.connect(f).connect(g).connect(master); s.start();
+    }, 90);
+  }
+  if (kind === 'rain') { add(noise('white'), 1800, 0.4, 0.22); add(noise('brown'), 300, 0.5, 0.35); }
+  if (kind === 'sea') {
+    const g = add(noise('brown'), 700, 0.5, 0.6);
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.09; lg.gain.value = 0.5; lfo.connect(lg).connect(g.gain); lfo.start(); nodes.push(lfo);
+  }
+  if (kind === 'water') { add(noise('brown'), 220, 2, 0.35); }
+  if (kind === 'wind') {
+    const g = add(noise('white'), 400, 6, 0.12, 'bandpass');
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.05; lg.gain.value = 0.1; lfo.connect(lg).connect(g.gain); lfo.start(); nodes.push(lfo);
+  }
+}
+
+/* ---------- Szenen ---------- */
+const scenes = [
+  { id: 'kamin', name: 'Kaminfeuer', sound: 'fire',
+    init() { this.p = []; this.logs = null; },
+    draw(t) {
+      const g = ctx.createRadialGradient(W / 2, H * 0.8, 0, W / 2, H * 0.8, H * 0.9);
+      g.addColorStop(0, `rgba(60,22,6,${0.9 + Math.sin(t / 180) * 0.05})`); g.addColorStop(1, '#040202');
+      ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // Kaminöffnung
+      ctx.fillStyle = '#0c0705'; ctx.fillRect(W * 0.18, H * 0.25, W * 0.64, H * 0.7);
+      ctx.fillStyle = '#1a100b'; ctx.fillRect(W * 0.1, H * 0.18, W * 0.8, H * 0.07); ctx.fillRect(W * 0.1, H * 0.18, W * 0.08, H * 0.82); ctx.fillRect(W * 0.82, H * 0.18, W * 0.08, H * 0.82);
+      // Flammen-Partikel
+      for (let i = 0; i < 9; i++) this.p.push({ x: W * 0.5 + (R() - 0.5) * W * 0.34, y: H * 0.86, vx: (R() - 0.5) * 0.4, vy: -(1 + R() * 2.2), life: 1, s: H * (0.03 + R() * 0.05) });
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of this.p) {
+        p.x += p.vx + Math.sin(t / 300 + p.y / 30) * 0.3; p.y += p.vy; p.life -= 0.016; p.s *= 0.985;
+        const a = Math.max(0, p.life);
+        const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s);
+        gr.addColorStop(0, `rgba(255,${180 + a * 60},${80 * a},${a * 0.5})`); gr.addColorStop(0.5, `rgba(255,${90 + a * 60},20,${a * 0.25})`); gr.addColorStop(1, 'rgba(120,20,0,0)');
+        ctx.fillStyle = gr; ctx.fillRect(p.x - p.s, p.y - p.s, p.s * 2, p.s * 2);
+      }
+      this.p = this.p.filter((p) => p.life > 0);
+      // Funken
+      if (R() < 0.3) this.p.push({ x: W * 0.5 + (R() - 0.5) * W * 0.2, y: H * 0.7, vx: (R() - 0.5) * 1.2, vy: -(2 + R() * 3), life: 1.2, s: H * 0.004 });
+      ctx.globalCompositeOperation = 'source-over';
+      // Holzscheite
+      ctx.fillStyle = '#2b1609';
+      ctx.save(); ctx.translate(W * 0.5, H * 0.88); ctx.rotate(-0.12); ctx.fillRect(-W * 0.17, -H * 0.025, W * 0.34, H * 0.05); ctx.rotate(0.24); ctx.fillRect(-W * 0.16, -H * 0.02, W * 0.32, H * 0.045); ctx.restore();
+      const glow = 0.5 + Math.sin(t / 120) * 0.15 + R() * 0.1;
+      ctx.fillStyle = `rgba(255,110,30,${0.35 * glow})`; ctx.fillRect(W * 0.34, H * 0.875, W * 0.32, H * 0.012);
+    } },
+  { id: 'regen', name: 'Regen am Fenster', sound: 'rain',
+    init() { this.d = Array.from({ length: 140 }, () => this.nd(true)); this.rain = Array.from({ length: 220 }, () => ({ x: R() * W, y: R() * H, v: 6 + R() * 6 })); },
+    nd(any) { return { x: R() * W, y: any ? R() * H : -10, r: H * (0.003 + R() * 0.008), v: 0, hold: R() * 200 }; },
+    draw(t) {
+      // unscharfe Stadtlichter hinter der Scheibe
+      ctx.fillStyle = '#060a10'; ctx.fillRect(0, 0, W, H);
+      if (!this.bokeh) this.bokeh = Array.from({ length: 40 }, () => ({ x: R() * W, y: H * (0.3 + R() * 0.6), r: H * (0.02 + R() * 0.06), c: [[255, 190, 120], [255, 230, 180], [140, 180, 255], [255, 120, 90]][Math.floor(R() * 4)], ph: R() * 6 }));
+      for (const b of this.bokeh) { const a = 0.12 + 0.06 * Math.sin(t / 1500 + b.ph); const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r); g.addColorStop(0, `rgba(${b.c},${a})`); g.addColorStop(1, `rgba(${b.c},0)`); ctx.fillStyle = g; ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); }
+      ctx.strokeStyle = 'rgba(180,200,230,.12)'; ctx.lineWidth = 1;
+      for (const r of this.rain) { r.y += r.v; r.x += 0.6; if (r.y > H) { r.y = -10; r.x = R() * W; } ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y - 12); ctx.stroke(); }
+      // Tropfen auf der Scheibe: bleiben hängen, rutschen dann ab
+      for (const d of this.d) {
+        if (d.hold > 0) d.hold--; else { d.v = Math.min(3, d.v + 0.05 * d.r); d.y += d.v; d.x += Math.sin(d.y / 20) * 0.2; }
+        if (d.y > H + 10) Object.assign(d, this.nd(false));
+        const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
+        g.addColorStop(0, 'rgba(255,255,255,.35)'); g.addColorStop(0.6, 'rgba(150,170,200,.12)'); g.addColorStop(1, 'rgba(0,0,0,.2)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+      }
+    } },
+  { id: 'aquarium', name: 'Aquarium', sound: 'water',
+    init() { this.f = Array.from({ length: 14 }, () => this.fish()); this.b = []; this.weeds = Array.from({ length: 16 }, () => ({ x: R() * W, h: H * (0.2 + R() * 0.35), ph: R() * 6, c: 80 + R() * 60 })); },
+    fish() { const dir = R() < 0.5 ? 1 : -1; return { x: dir > 0 ? -50 : W + 50, y: H * (0.15 + R() * 0.65), v: dir * (0.4 + R() * 1.1), s: H * (0.02 + R() * 0.035), hue: [20, 35, 190, 50, 0, 280][Math.floor(R() * 6)], ph: R() * 6 }; },
+    draw(t) {
+      const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0b3a4a'); g.addColorStop(1, '#03141a');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // Lichtstrahlen
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 6; i++) { const x = W * (i / 6 + 0.05) + Math.sin(t / 3000 + i) * W * 0.03; ctx.fillStyle = 'rgba(120,200,220,.025)'; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + W * 0.08, 0); ctx.lineTo(x + W * 0.2, H); ctx.lineTo(x + W * 0.1, H); ctx.fill(); }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#1d2a22'; ctx.fillRect(0, H * 0.92, W, H * 0.08);
+      for (const w of this.weeds) { ctx.strokeStyle = `rgba(40,${w.c},70,.8)`; ctx.lineWidth = H * 0.008; ctx.beginPath(); ctx.moveTo(w.x, H * 0.93); for (let k = 1; k <= 10; k++) ctx.lineTo(w.x + Math.sin(t / 900 + w.ph + k * 0.4) * k * 1.5, H * 0.93 - (w.h * k) / 10); ctx.stroke(); }
+      for (const f of this.f) {
+        f.x += f.v; f.y += Math.sin(t / 700 + f.ph) * 0.2;
+        if (f.x < -80 || f.x > W + 80) Object.assign(f, this.fish());
+        ctx.save(); ctx.translate(f.x, f.y); ctx.scale(f.v > 0 ? 1 : -1, 1);
+        ctx.fillStyle = `hsl(${f.hue} 75% 55%)`;
+        ctx.beginPath(); ctx.ellipse(0, 0, f.s, f.s * 0.45, 0, 0, 7); ctx.fill();
+        const tw = Math.sin(t / 120 + f.ph) * f.s * 0.15;
+        ctx.beginPath(); ctx.moveTo(-f.s * 0.9, 0); ctx.lineTo(-f.s * 1.5, -f.s * 0.4 + tw); ctx.lineTo(-f.s * 1.5, f.s * 0.4 + tw); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(f.s * 0.55, -f.s * 0.08, f.s * 0.07, 0, 7); ctx.fill();
+        ctx.restore();
+      }
+      if (R() < 0.08) this.b.push({ x: W * (0.2 + R() * 0.6), y: H * 0.92, r: H * (0.003 + R() * 0.006) });
+      ctx.strokeStyle = 'rgba(200,240,255,.35)'; ctx.lineWidth = 1;
+      for (const b of this.b) { b.y -= 1 + b.r; b.x += Math.sin(b.y / 15) * 0.3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); }
+      this.b = this.b.filter((b) => b.y > -10);
+    } },
+  { id: 'nordlicht', name: 'Nordlicht', sound: 'wind', scene: 'tundra' },
+  { id: 'meer', name: 'Meeresrauschen', sound: 'sea', scene: 'kueste' },
+  { id: 'see', name: 'Waldsee bei Nacht', sound: 'water', scene: 'see' },
+];
+let cur = 0, sceneObj = null;
+const holder = document.createElement('div');
+holder.style.cssText = 'position:fixed;inset:0';
+document.body.prepend(holder);
+
+function pick(i) {
+  cur = (i + scenes.length) % scenes.length;
+  const s = scenes[cur];
+  document.getElementById('name').textContent = s.name;
+  if (s.scene) {
+    c.style.display = 'none';
+    holder.style.display = 'block';
+    if (!sceneObj) { sceneObj = new L.Scene(holder, { scene: s.scene, motion: 'voll', aurora: true, scale: 0.6 }); sceneObj.setLocation(54.32, 10.12); }
+    sceneObj.set({ scene: s.scene, aurora: true });
+    sceneObj.preview({ hour: 23, kind: 'clear' });
+    sceneObj.start();
+  } else {
+    sceneObj && sceneObj.stop();
+    holder.style.display = 'none';
+    c.style.display = 'block';
+    size();
+  }
+  startSound(s.sound);
+  paintBar(); wakeUi();
+  history.replaceState(null, '', '?s=' + s.id);
+}
+function paintBar() {
+  const bar = document.getElementById('bar'); bar.innerHTML = '';
+  scenes.forEach((s, i) => { const b = document.createElement('button'); b.textContent = s.name; b.className = i === cur ? 'on' : ''; b.onclick = () => pick(i); bar.append(b); });
+}
+let uiT;
+function wakeUi() { ['bar', 'info'].forEach((id) => document.getElementById(id).classList.remove('hide')); clearTimeout(uiT); uiT = setTimeout(() => ['bar', 'info'].forEach((id) => document.getElementById(id).classList.add('hide')), 4000); }
+
+let last = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  if (t - last < 33) return;   // ~30 Bilder pro Sekunde
+  last = t;
+  const s = scenes[cur];
+  if (!s.scene) s.draw(t);
+}
+setInterval(() => { const d = new Date(); document.getElementById('clock').textContent = L.timeStr(d); }, 1000);
+
+addEventListener('keydown', (e) => {
+  const k = L.keyName(e);
+  wakeUi();
+  if (ac && ac.state === 'suspended') ac.resume();
+  if (k === 'right') pick(cur + 1);
+  else if (k === 'left') pick(cur - 1);
+  else if (k === 'up') { vol = Math.min(1, vol + 0.1); if (master) master.gain.value = vol; }
+  else if (k === 'down') { vol = Math.max(0, vol - 0.1); if (master) master.gain.value = vol; }
+  else if (k === 'ok' || k === 'play') { soundOn = !soundOn; startSound(scenes[cur].sound); }
+  else if (k === 'back' || k === 'backspace' || k === 'home') location.href = '/';
+  else return;
+  e.preventDefault();
+});
+addEventListener('mousemove', wakeUi);
+addEventListener('resize', () => { if (!scenes[cur].scene) size(); });
+// Home-Taste / Schlaf-Timer vom Dienst
+L.events((ev) => {
+  if (ev.type === 'home') location.href = '/';
+  if (ev.type === 'sleep') { soundOn = false; stopSound(); }
+});
+// Bildschirmschoner soll Ambiente nicht unterbrechen: als "läuft gerade" melden
+setInterval(() => L.api('/api/activity', 'POST', { playing: true }).catch(() => {}), 30000);
+L.api('/api/activity', 'POST', { playing: true }).catch(() => {});
+
+const want = new URLSearchParams(location.search).get('s');
+pick(Math.max(0, scenes.findIndex((s) => s.id === want)));
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

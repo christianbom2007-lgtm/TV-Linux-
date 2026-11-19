@@ -174,21 +174,30 @@ L.Nav = {
     const a = cur.getBoundingClientRect();
     const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
     let best = null, bestScore = Infinity;
-    // Erst Elemente in derselben Gruppe (z. B. gleiche Kachelreihe) bevorzugen
+    const cands = [];
     for (const el of this.items()) {
       if (el === cur) continue;
       const b = el.getBoundingClientRect();
       const bx = b.left + b.width / 2, by = b.top + b.height / 2;
       const dx = bx - ax, dy = by - ay;
-      let primary, secondary;
+      let primary, secondary, gap = 0;
       if (dir === 'left') { if (b.right > a.left + 4 && dx >= -4) continue; primary = -dx; secondary = Math.abs(dy); }
       if (dir === 'right') { if (b.left < a.right - 4 && dx <= 4) continue; primary = dx; secondary = Math.abs(dy); }
-      if (dir === 'up') { if (b.bottom > a.top + 4 && dy >= -4) continue; primary = -dy; secondary = Math.abs(dx); }
-      if (dir === 'down') { if (b.top < a.bottom - 4 && dy <= 4) continue; primary = dy; secondary = Math.abs(dx); }
+      if (dir === 'up') { if (b.bottom > a.top + a.height * 0.5) continue; primary = -dy; secondary = Math.abs(dx); gap = Math.max(0, a.top - b.bottom); }
+      if (dir === 'down') { if (b.top < a.bottom - a.height * 0.5) continue; primary = dy; secondary = Math.abs(dx); gap = Math.max(0, b.top - a.bottom); }
       if (primary <= 0) continue;
-      // Waagerecht: gleiche Zeile stark bevorzugen; senkrecht: Spalte weniger streng
-      const score = (dir === 'left' || dir === 'right') ? primary + secondary * 3 : primary + secondary * 0.6;
-      if (score < bestScore) { bestScore = score; best = el; }
+      cands.push({ el, primary, secondary, gap });
+    }
+    // Hoch/runter: immer zuerst die NÄCHSTE Reihe nehmen (wie bei echten TV-Oberflächen),
+    // innerhalb dieser Reihe das Element, das waagerecht am nächsten liegt.
+    let pool = cands;
+    if ((dir === 'up' || dir === 'down') && cands.length) {
+      const minGap = Math.min(...cands.map((c) => c.gap));
+      pool = cands.filter((c) => c.gap <= minGap + Math.max(24, a.height * 0.35));
+    }
+    for (const c of pool) {
+      const score = (dir === 'left' || dir === 'right') ? c.primary + c.secondary * 3 : c.secondary + c.primary * 0.2;
+      if (score < bestScore) { bestScore = score; best = c.el; }
     }
     if (best) this.focus(best);
     return !!best;

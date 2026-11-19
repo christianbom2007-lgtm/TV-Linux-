@@ -33,6 +33,12 @@
         </div>
       </div>
 
+      <div class="stats-bar" id="stats"></div>
+
+      <div id="quick-block" class="block quickbar">
+        <div class="row" id="quick-row"></div>
+      </div>
+
       <div class="hero" id="hero">
         <div class="kicker" id="hero-kicker"></div>
         <h1 id="hero-title"></h1>
@@ -48,6 +54,10 @@
           <div class="row-label">Kacheln</div>
           <div class="row" id="tile-row"></div>
         </div>
+        <div id="recent-block" class="block" hidden>
+          <div class="row-label">Zuletzt besucht</div>
+          <div class="row" id="recent-row"></div>
+        </div>
         <div id="media-blocks"></div>
       </div>
 
@@ -57,6 +67,8 @@
         <span><kbd>1–9</kbd>Direkt</span>
         <span><kbd>⊞</kbd>/<kbd>F1</kbd>Startseite</span>
         <span><kbd>S</kbd>Einstellungen</span>
+        <span><kbd>B</kbd>Brave</span>
+        <span><kbd>Q</kbd>Schnellmenü</span>
         <span><kbd>T</kbd>Schlaf-Timer</span>
       </div>
     </div>
@@ -86,5 +98,6 @@
   <script src="app.js"></script>
   <script src="features.js"></script>
   <script src="setup.js"></script>
+  <script src="extra.js"></script>
 </body>
 </html>

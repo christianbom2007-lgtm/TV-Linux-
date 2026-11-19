@@ -1,0 +1,192 @@
+#!/bin/bash
+# ==========================================================================
+#  Lichtung TV – Verwaltungs-Helfer mit Root-Rechten
+# --------------------------------------------------------------------------
+#  Der Lichtung-Dienst läuft als normaler Benutzer "tv". Für ein paar Dinge
+#  braucht es aber Root-Rechte (Update einspielen, Bootmenü, Bootanimation).
+#  Genau dafür – und NUR dafür – darf "tv" dieses Skript per sudo starten
+#  (Regel in /etc/sudoers.d/lichtung). Jede Eingabe wird streng geprüft.
+#
+#  Aufruf:  sudo lichtung-admin <befehl> [wert]
+#    update <datei>          Update-Paket (.tar.gz oder .zip) einspielen + Neustart
+#    update-status           Stand des letzten Updates
+#    grub-menu on|off        Bootmenü beim Start 3 Sekunden zeigen oder verstecken
+#    grub-menu-status        on/off
+#    plymouth <name>         Bootanimation wählen (dauert ~30 Sekunden)
+#    plymouth-status         aktuelle Bootanimation
+#    brave-extensions <ids>  Brave-Erweiterungen (kommagetrennte IDs aus der Liste)
+#    wol on|off              Einschalten per Netzwerk (Wake-on-LAN) am LAN-Anschluss
+#    miracast start|stop|status   Samsung Smart View / Miracast-Empfänger (experimentell)
+#    runner-setup <repo-url>      Bau-Station: GitHub-Actions-Runner einrichten (Token über stdin)
+#    runner-remove | runner-status
+#    adguard on|off|status        WLAN-Werbeblocker (AdGuard Home)
+#    dienst <name> on|off|status  kuma | vaultwarden | gitea | syncthing | tailscale
+#    tailscale-login              Anmelde-Link für Tailscale holen
+#    vaultwarden-https            Vaultwarden über Tailscale mit HTTPS erreichbar machen
+# ==========================================================================
+set -u
+STATE=/var/lib/lichtung-tv
+mkdir -p "$STATE"
+chmod 755 "$STATE"
+UPD_DIR=/var/tmp/lichtung-update
+say() { echo "$*"; }
+
+case "${1:-}" in
+# --------------------------------------------------------------------------
+update)
+  F="${2:-}"
+  # Nur Dateien aus dem Update-Ordner, keine Pfad-Tricks
+  case "$F" in "$UPD_DIR"/*) ;; *) say "Datei muss in $UPD_DIR liegen"; exit 2 ;; esac
+  case "$F" in *..*) exit 2 ;; esac
+  [ -f "$F" ] || { say "Datei fehlt"; exit 2; }
+  W="$STATE/update-src"
+  rm -rf "$W" && mkdir -p "$W"
+  if head -c 2 "$F" | grep -q 'PK'; then
+    python3 -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$F" "$W" || { say "ZIP defekt"; exit 3; }
+  else
+    tar xzf "$F" -C "$W" || { say "Archiv defekt"; exit 3; }
+  fi
+  # Ordner mit install.sh + Dienst finden (GitHub packt alles in einen Unterordner)
+  SRC=$(dirname "$(find "$W" -maxdepth 3 -name install.sh -path '*/install.sh' | head -n1)")
+  [ -f "$SRC/install.sh" ] && [ -f "$SRC/server/lichtung_server.py" ] || { say "Das ist kein Lichtung-Paket"; exit 3; }
+  echo "läuft $(date '+%d.%m.%Y %H:%M')" > "$STATE/update.status"
+  chmod 644 "$STATE/update.status"
+  # Eigener systemd-Auftrag: läuft weiter, auch wenn der Lichtung-Dienst neu startet
+  systemd-run --unit="lichtung-update-$(date +%s)" --collect --quiet \
+    bash -c "cd '$SRC' && LICHTUNG_UPDATE=1 bash install.sh > /var/log/lichtung-update.log 2>&1 \
+      && echo \"fertig \$(date '+%d.%m.%Y %H:%M') – Neustart\" > '$STATE/update.status' && sleep 4 && systemctl reboot \
+      || echo \"fehler \$(date '+%d.%m.%Y %H:%M') – siehe /var/log/lichtung-update.log\" > '$STATE/update.status'"
+  say "Update gestartet"
+  ;;
+update-status)
+  cat "$STATE/update.status" 2>/dev/null || echo "keins"
+  ;;
+# --------------------------------------------------------------------------
+grub-menu)
+  [ -f /etc/default/grub ] || { say "kein GRUB"; exit 2; }
+  case "${2:-}" in
+    on)  sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=3/; s/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=menu/' /etc/default/grub ;;
+    off) sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/; s/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub ;;
+    *) exit 2 ;;
+  esac
+  update-grub >/dev/null 2>&1
+  say "ok"
+  ;;
+grub-menu-status)
+  grep -q '^GRUB_TIMEOUT_STYLE=menu' /etc/default/grub 2>/dev/null && echo on || echo off
+  ;;
+# --------------------------------------------------------------------------
+plymouth)
+  T="${2:-}"
+  case "$T" in *[!a-z0-9-]*|'') say "ungültig"; exit 2 ;; esac
+  [ -d "/usr/share/plymouth/themes/$T" ] || { say "Bootanimation fehlt"; exit 2; }
+  echo "läuft" > "$STATE/plymouth.status"; chmod 644 "$STATE/plymouth.status"
+  systemd-run --unit="lichtung-plymouth-$(date +%s)" --collect --quiet \
+    bash -c "plymouth-set-default-theme -R '$T' >/dev/null 2>&1 && echo 'fertig $T' > '$STATE/plymouth.status' || echo fehler > '$STATE/plymouth.status'"
+  say "ok"
+  ;;
+plymouth-status)
+  echo "$(plymouth-set-default-theme 2>/dev/null)|$(cat "$STATE/plymouth.status" 2>/dev/null)"
+  ;;
+# --------------------------------------------------------------------------
+brave-extensions)
+  # Nur IDs aus 32 Kleinbuchstaben a-p (so sehen Chrome-Erweiterungs-IDs aus)
+  LIST="${2:-}"
+  OUT="["
+  IFS=',' read -ra IDS <<< "$LIST"
+  for id in "${IDS[@]}"; do
+    [[ "$id" =~ ^[a-p]{32}$ ]] || continue
+    OUT="$OUT\"$id;https://clients2.google.com/service/update2/crx\","
+  done
+  OUT="${OUT%,}]"
+  mkdir -p /etc/brave/policies/managed
+  printf '{ "ExtensionInstallForcelist": %s }\n' "$OUT" > /etc/brave/policies/managed/lichtung-extensions.json
+  chmod 644 /etc/brave/policies/managed/lichtung-extensions.json
+  say "ok"
+  ;;
+# --------------------------------------------------------------------------
+wol)
+  IF=$(ls /sys/class/net | grep -E '^(en|eth)' | head -n1)
+  [ -n "$IF" ] || { say "kein LAN-Anschluss"; exit 2; }
+  CON=$(nmcli -t -f NAME,DEVICE con show 2>/dev/null | awk -F: -v d="$IF" '$2==d{print $1; exit}')
+  case "${2:-}" in
+    on)  ethtool -s "$IF" wol g 2>/dev/null; [ -n "$CON" ] && nmcli con modify "$CON" 802-3-ethernet.wake-on-lan magic 2>/dev/null ;;
+    off) ethtool -s "$IF" wol d 2>/dev/null; [ -n "$CON" ] && nmcli con modify "$CON" 802-3-ethernet.wake-on-lan ignore 2>/dev/null ;;
+    *) exit 2 ;;
+  esac
+  echo "$IF $(cat /sys/class/net/$IF/address)"
+  ;;
+# --------------------------------------------------------------------------
+miracast)
+  command -v miracle-wifid >/dev/null || { say "nicht installiert"; exit 2; }
+  WL=$(ls /sys/class/net | grep -E '^wl' | head -n1)
+  case "${2:-}" in
+    start)
+      [ -n "$WL" ] || { say "kein WLAN"; exit 2; }
+      nmcli dev set "$WL" managed no 2>/dev/null
+      pkill -f "wpa_supplicant.*$WL" 2>/dev/null
+      systemd-run --unit=lichtung-miracast --collect --quiet \
+        bash -c "miracle-wifid -i '$WL' & sleep 3; LINK=\$(echo quit | miracle-sinkctl 2>/dev/null | grep -oE 'Link: *[0-9]+' | grep -oE '[0-9]+' | head -n1); \
+                 ( echo \"run \$LINK\"; sleep infinity ) | miracle-sinkctl > /var/log/lichtung-miracast.log 2>&1"
+      echo "läuft" > "$STATE/miracast.status"
+      ;;
+    stop)
+      systemctl stop lichtung-miracast 2>/dev/null
+      pkill -f miracle-wifid 2>/dev/null; pkill -f miracle-sinkctl 2>/dev/null
+      [ -n "$WL" ] && nmcli dev set "$WL" managed yes 2>/dev/null
+      echo "aus" > "$STATE/miracast.status"
+      ;;
+    status) cat "$STATE/miracast.status" 2>/dev/null || echo aus ;;
+    *) exit 2 ;;
+  esac
+  chmod 644 "$STATE/miracast.status" 2>/dev/null
+  ;;
+# --------------------------------------------------------------------------
+dienst)
+  NAME="${2:-}"; ACT="${3:-status}"
+  SV=/var/lib/lichtung-services
+  mkdir -p "$SV"
+  docker_run() {   # Name, Image, weitere docker-Argumente …
+    local n="$1" img="$2"; shift 2
+    command -v docker >/dev/null || { say "Docker fehlt (install.sh erneut ausführen)"; exit 2; }
+    if docker ps -a --format '{{.Names}}' | grep -qx "lichtung-$n"; then docker start "lichtung-$n" >/dev/null; else
+      echo "lädt" > "$STATE/dienst-$n.status"
+      systemd-run --unit="lichtung-pull-$n-$(date +%s)" --collect --quiet bash -c \
+        "docker run -d --name lichtung-$n --restart unless-stopped $* $img >/dev/null 2>&1 && echo läuft > $STATE/dienst-$n.status || echo fehler > $STATE/dienst-$n.status"
+    fi
+  }
+  case "$NAME:$ACT" in
+    kuma:on)        docker_run kuma louislam/uptime-kuma:1 -p 3002:3001 -v "$SV/kuma:/app/data" ;;
+    vaultwarden:on) docker_run vaultwarden vaultwarden/server:latest -p 127.0.0.1:8222:80 -v "$SV/vaultwarden:/data" -e SIGNUPS_ALLOWED=true ;;
+    gitea:on)       docker_run gitea gitea/gitea:latest -p 3001:3000 -p 2222:22 -v "$SV/gitea:/data" -e USER_UID=1000 -e USER_GID=1000 ;;
+    kuma:off|vaultwarden:off|gitea:off) docker stop "lichtung-$NAME" >/dev/null 2>&1; docker update --restart no "lichtung-$NAME" >/dev/null 2>&1 ;;
+    kuma:status|vaultwarden:status|gitea:status)
+      if ! command -v docker >/dev/null; then echo "fehlt"
+      elif docker ps --format '{{.Names}}' | grep -qx "lichtung-$NAME"; then echo "läuft"
+      else cat "$STATE/dienst-$NAME.status" 2>/dev/null | grep -q lädt && echo "lädt" || echo "aus"; fi ;;
+    syncthing:on)   systemctl enable --now syncthing@tv >/dev/null 2>&1 && say "läuft" ;;
+    syncthing:off)  systemctl disable --now syncthing@tv >/dev/null 2>&1; say "aus" ;;
+    syncthing:status) command -v syncthing >/dev/null || { echo fehlt; exit 0; }; systemctl is-active syncthing@tv 2>/dev/null | sed 's/^active$/läuft/;s/^inactive$/aus/' ;;
+    tailscale:on)   systemctl enable --now tailscaled >/dev/null 2>&1; tailscale set --operator=tv >/dev/null 2>&1; say "läuft" ;;
+    tailscale:off)  tailscale down >/dev/null 2>&1; systemctl disable --now tailscaled >/dev/null 2>&1; say "aus" ;;
+    tailscale:status) command -v tailscale >/dev/null || { echo fehlt; exit 0; }; systemctl is-active tailscaled 2>/dev/null | sed 's/^active$/läuft/;s/^inactive$/aus/' ;;
+    *) say "unbekannter Dienst"; exit 2 ;;
+  esac
+  chmod 644 "$STATE"/dienst-*.status 2>/dev/null || true
+  ;;
+tailscale-login)
+  command -v tailscale >/dev/null || { say "Tailscale fehlt"; exit 2; }
+  systemctl enable --now tailscaled >/dev/null 2>&1
+  tailscale set --operator=tv >/dev/null 2>&1
+  # Der Anmelde-Link erscheint sofort; die Anmeldung selbst läuft im Hintergrund weiter
+  timeout 12 tailscale up --hostname=lichtung --accept-dns=false 2>&1 | grep -oE 'https://login\.tailscale\.com/[^ ]+' | head -n1 || true
+  ;;
+vaultwarden-https)
+  command -v tailscale >/dev/null || { say "Tailscale fehlt"; exit 2; }
+  tailscale serve --bg --https=443 http://127.0.0.1:8222 2>&1 | tail -n 3
+  ;;
+*)
+  sed -n '2,28p' "$0"
+  exit 1
+  ;;
+esac

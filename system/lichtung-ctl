@@ -1,0 +1,20 @@
+#!/bin/sh
+# Lichtung TV – kleiner Befehls-Helfer für Tastenkürzel (sway) und Konsole.
+# Beispiele:  lichtung-ctl home      → zurück zur Startseite
+#             lichtung-ctl key volup → lauter
+#             lichtung-ctl quick     → Schnellmenü
+#             lichtung-ctl browser   → Brave öffnen
+#             lichtung-ctl app terminal
+B="http://127.0.0.1:8770"
+post() { curl -fsS -m 4 -X POST -H 'Content-Type: application/json' -d "$2" "$B$1" >/dev/null 2>&1; }
+
+case "$1" in
+  home)    post /api/key '{"key":"home","src":"wm"}' ;;
+  key)     case "$2" in volup|voldown|mute) post /api/key "{\"key\":\"$2\",\"src\":\"wm\"}" ;; esac ;;
+  quick)   post /api/quick '{}' ;;
+  browser) post /api/browser/open '{"url":"","mode":"tab"}' ;;
+  app)     case "$2" in *[!a-zA-Z0-9._-]*|'') exit 1 ;; *) post /api/apps/launch "{\"id\":\"$2\"}" ;; esac ;;
+  hello)   # sway ist gestartet – der Dienst übernimmt Tasten ab jetzt von hier
+           for _ in 1 2 3 4 5 6 7 8 9 10; do post /api/wm '{"wm":"sway"}' && exit 0; sleep 1; done ;;
+  *)       echo "Benutzung: lichtung-ctl home|key volup|key voldown|key mute|quick|browser|app <name>" ;;
+esac

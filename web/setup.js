@@ -1,5 +1,5 @@
 /* Lichtung TV – Einrichtungsassistent (erscheint beim allerersten Start)
- * Schritte: Willkommen → Ort → Ton → Profile → Kacheln → Handy → Fertig
+ * Schritte: Willkommen → Design (Live-Vorschau) → Ort → Ton → Profile → Kacheln → Brave → Handy → Fertig
  * Kann jederzeit über Einstellungen → System → Einrichtung wiederholen neu gestartet werden.
  */
 'use strict';
@@ -13,7 +13,7 @@ function runSetup(onDone) {
   paintSetup();
 }
 
-const SETUP_STEPS = ['welcome', 'place', 'sound', 'profiles', 'tiles', 'phone', 'done'];
+const SETUP_STEPS = ['welcome', 'design', 'place', 'sound', 'profiles', 'tiles', 'brave', 'phone', 'done'];
 
 function setupShell(title, lead, body, buttons) {
   const root = $('#setup');
@@ -42,11 +42,13 @@ async function paintSetup() {
       h('div', { class: 'setup-keys' },
         h('div', {}, h('kbd', {}, '← ↑ → ↓'), ' bewegen'), h('div', {}, h('kbd', {}, 'Enter / OK'), ' auswählen'), h('div', {}, h('kbd', {}, 'Esc / Zurück'), ' einen Schritt zurück')),
       [btn('Los geht’s', next, true)]);
-    // Designart gleich hier wählbar
-    const card = $('#setup .setup-body');
-    card.append(h('div', { class: 'setup-kicker', style: { marginTop: 'calc(2*var(--u))' } }, 'Designart'),
-      h('div', { class: 'theme-choices' }, THEMES.map(([id, name, sub, c]) => h('button', { class: 'theme-choice' + ((S.state.general.theme || 'lichtung') === id ? ' sel' : ''), 'data-nav': true, style: { background: c[0], color: c[1] },
-        onclick: async () => { await api('/api/general', 'POST', { theme: id }); await load(); paintSetup(); } }, h('b', { style: { fontFamily: c[4] } }, name), h('span', {}, sub)))));
+  }
+  if (step === 'design') {
+    // Live-Vorschau: jede Wahl ändert sofort den Hintergrund hinter dieser Karte
+    setupShell('Wie soll es aussehen?', 'Wähle ein Paket – der Fernseher ändert sich sofort dahinter. Einzeln anpassen geht später unter Einstellungen → Aussehen.',
+      window.packageChoices ? window.packageChoices(() => { load().then(() => { applyLook(); paintSetup(); }); }) : h('div'),
+      [btn('Zurück', prev), btn('Gefällt mir', next, true)]);
+    $('#setup .setup-card').classList.add('wide', 'see-through');
   }
   if (step === 'place') {
     const q = h('input', { class: 'inp', 'data-nav': true, placeholder: 'Ort suchen, z. B. Kiel', value: '' });
@@ -120,6 +122,16 @@ async function paintSetup() {
         await load(); next();
       }, true)]);
   }
+  if (step === 'brave') {
+    setupShell('Brave – dein Browser', 'Alle Websites öffnen sich in Brave: ganz normal mit Tabs und Adressleiste. Die Windows-Taste bringt dich jederzeit hierher zurück, die Tabs bleiben offen.',
+      h('div', { class: 'setup-keys' },
+        h('div', {}, h('kbd', {}, '1'), ' „Brave einrichten“ öffnet die Erweiterungs-Seite'),
+        h('div', {}, h('kbd', {}, '2'), ' Bei „uBlock Origin“ den Schalter einschalten (Werbeblocker, einmalig)'),
+        h('div', {}, h('kbd', {}, '3'), ' Windows-Taste → zurück zur Einrichtung'),
+        h('div', { style: { marginTop: '1em', opacity: .75 } }, 'Brave blockt auch ohne uBlock schon viel Werbung. Größe & YouTube-Kinomodus: Einstellungen → Browser & YouTube.')),
+      [btn('Zurück', prev), btn('Brave einrichten', () => openWeb('brave://settings/extensions/v2', 'tab', 'Brave einrichten')), btn('Weiter', next, true)]);
+    if (!S.state.brave) $('#setup .setup-lead').textContent = 'Brave ist noch nicht installiert – das erledigt das Update. Websites öffnen sich bis dahin direkt hier.';
+  }
   if (step === 'phone') {
     const qrBox = h('div', { class: 'qr' }), code = h('div', { class: 'big-code' }, '····'), addr = h('div', { style: { fontSize: 'calc(2*var(--u))' } }, '…');
     api('/api/netinfo').then((n) => {
@@ -127,7 +139,7 @@ async function paintSetup() {
       addr.textContent = url; code.textContent = n.pin;
       try { const qr = qrcode(0, 'M'); qr.addData(url + '#' + n.pin); qr.make(); qrBox.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); } catch (_) {}
     });
-    setupShell('Dein Handy als Fernbedienung', 'Handy ins gleiche WLAN, QR-Code mit der Kamera scannen. Dann: steuern, tippen, Links schicken, eigene Fotos hochladen.',
+    setupShell('Dein Handy als Fernbedienung', 'Handy ins gleiche WLAN, QR-Code mit der Kamera scannen. Dann: steuern, tippen, Links schicken, eigene Fotos hochladen. Zusätzlich: App „KDE Connect“ für Medien-Steuerung und Pause bei Anruf (Einstellungen → Handy & Verbindung).',
       h('div', { class: 'remote-box' }, qrBox, h('div', {}, h('div', { class: 'lead', style: { marginBottom: '.4em' } }, 'Adresse'), addr, h('div', { class: 'lead', style: { margin: '2em 0 .2em' } }, 'Code'), code)),
       [btn('Zurück', prev), btn('Später', next), btn('Erledigt', next, true)]);
   }
@@ -135,6 +147,8 @@ async function paintSetup() {
     setupShell('Alles bereit.', 'Viel Spaß beim Schauen. Die wichtigsten Tasten:',
       h('div', { class: 'setup-keys' },
         h('div', {}, h('kbd', {}, 'Windows / F1 / Home'), ' von überall zur Startseite'),
+        h('div', {}, h('kbd', {}, 'Windows + Q'), ' Schnellmenü (Ton, Licht, Bildschirm aus)'),
+        h('div', {}, h('kbd', {}, 'B'), ' Brave · ', h('kbd', {}, '/'), ' Suchen'),
         h('div', {}, h('kbd', {}, '☰ / M'), ' Optionen zur Kachel'),
         h('div', {}, h('kbd', {}, 'S'), ' Einstellungen'), h('div', {}, h('kbd', {}, 'T'), ' Schlaf-Timer'),
         h('div', {}, h('kbd', {}, '1 – 9'), ' Kachel direkt öffnen')),

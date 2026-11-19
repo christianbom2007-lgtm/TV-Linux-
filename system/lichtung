@@ -1,0 +1,73 @@
+#!/bin/bash
+# ==========================================================================
+#  lichtung – Befehle für das Terminal
+#  Ohne Angabe erscheint ein Menü. Beispiele:
+#    lichtung status | logs | neustart | brave | update | suchen <name> | installieren <name>
+# ==========================================================================
+B="http://127.0.0.1:8770"
+G='\e[38;2;200;162;107m'; N='\e[0m'; D='\e[2m'
+api() { curl -fsS -m 8 "$B$1" 2>/dev/null; }
+post() { local d="${2:-}"; [ -z "$d" ] && d='{}'; curl -fsS -m 30 -X POST -H 'Content-Type: application/json' -d "$d" "$B$1" 2>/dev/null; }
+
+status() {
+  echo -e "${G}Lichtung TV – Status${N}"
+  api /api/sysinfo | python3 -c '
+import json, sys
+i = json.load(sys.stdin)
+m = i.get("mem") or {}; d = i.get("disk") or {}; w = i.get("wifi") or {}; v = i.get("volume") or {}
+up = i.get("uptime", 0)
+rows = [
+  ("Gerät", i.get("model") or i.get("host")), ("Temperatur", "%s °C" % i.get("temp")), ("Last", "%s (von %s Kernen)" % (i.get("load"), i.get("cpus"))),
+  ("RAM", "%s / %s GB" % (m.get("used"), m.get("total"))), ("Festplatte", "%s GB frei von %s GB" % (d.get("free"), d.get("total"))),
+  ("WLAN", "%s · %s %%" % (w.get("ssid"), w.get("signal")) if w else "–"), ("Adresse", i.get("ip")),
+  ("Läuft seit", "%d Std. %d Min." % (up // 3600, up % 3600 // 60)), ("Lautstärke", "%s %% über %s" % (v.get("volume"), v.get("backend"))),
+  ("Tasten", "sway" if i.get("sway") else "evdev"), ("Brave", i.get("brave") or "fehlt"),
+]
+for k, val in rows: print("  %-12s %s" % (k, val))
+' || echo "  Dienst antwortet nicht – lichtung neustart"
+  echo
+  echo -e "${G}Dienste${N}"
+  for s in lichtung-tv; do printf "  %-12s %s\n" "$s" "$(systemctl --user is-active $s 2>/dev/null)"; done
+  api /api/services | python3 -c '
+import json, sys
+s = json.load(sys.stdin)
+for k, v in (s.get("dienste") or {}).items(): print("  %-12s %s" % (k, v))
+print("  %-12s %s" % ("adguard", "läuft" if s["adguard"].get("active") else "aus"))
+print("  %-12s %s" % ("bau-station", s["runner"].get("state")))
+' 2>/dev/null
+}
+
+menu() {
+  echo -e "${G}Lichtung · Menü${N}"
+  PS3="Nummer wählen: "
+  select a in "Status" "Systemüberwachung (btop)" "Programm suchen & installieren" "Protokolle ansehen" "Oberfläche neu starten" "Brave neu starten" "Update von GitHub" "WLAN einrichten (nmtui)" "Speicherplatz ansehen" "Zurück zum Fernseher" "Beenden"; do
+    case $REPLY in
+      1) status ;; 2) btop ;; 3) read -rp "Suchbegriff: " q; search "$q"; read -rp "App-ID zum Installieren (leer = nichts): " id; [ -n "$id" ] && flatpak install --user -y flathub "$id" ;;
+      4) logs ;; 5) restart ;; 6) post /api/browser/restart >/dev/null; echo "Brave beendet" ;; 7) update ;;
+      8) echo "Braucht Root:"; su -c nmtui ;; 9) ncdu ~ ;; 10) /opt/lichtung-tv/system/lichtung-ctl home ;; *) break ;;
+    esac
+  done
+}
+
+search()  { flatpak search "$1" 2>/dev/null | head -n 20 || echo "flatpak fehlt"; }
+install() { flatpak install --user -y flathub "$1"; }
+logs()    { journalctl --user -u lichtung-tv -n 60 --no-pager; echo; echo -e "${D}Sitzung: /tmp/lichtung-session.log · Update: /var/log/lichtung-update.log${N}"; }
+restart() { systemctl --user restart lichtung-tv && pkill -f firefox-esr; echo "Oberfläche startet neu …"; }
+update()  {
+  echo "Prüfe GitHub …"
+  post /api/update/check | python3 -c 'import json,sys; c=json.load(sys.stdin); print(("Neu: %s (%s)" % (c["message"], c["latest"])) if c.get("newer") else (c.get("error") or "Neuester Stand ✓"), c.get("hint", ""))'
+  read -rp "Jetzt einspielen? (j/n) " a; [ "$a" = "j" ] && post /api/update/run && echo "Update läuft – der Fernseher startet danach neu."
+}
+
+case "${1:-}" in
+  "") menu ;;
+  status) status ;;
+  logs) logs ;;
+  neustart|restart) restart ;;
+  brave) /opt/lichtung-tv/system/lichtung-ctl browser ;;
+  home) /opt/lichtung-tv/system/lichtung-ctl home ;;
+  update) update ;;
+  suchen|search) search "${2:-}" ;;
+  installieren|install) install "${2:-}" ;;
+  hilfe|help|*) sed -n '3,6p' "$0" ;;
+esac

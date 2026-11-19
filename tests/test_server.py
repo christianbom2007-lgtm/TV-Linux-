@@ -190,9 +190,9 @@ class TestApi(unittest.TestCase):
 class TestExtras(unittest.TestCase):
     def test_links(self):
         n = srv.extras.normalize_link
-        self.assertEqual(n("Schau mal https://youtu.be/dQw4w9WgXcQ?t=42 !")[0], "https://www.youtube.com/tv#/watch?v=dQw4w9WgXcQ&t=42s")
-        self.assertEqual(n("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=x")[0], "https://www.youtube.com/tv#/watch?v=dQw4w9WgXcQ")
-        self.assertEqual(n("https://youtube.com/shorts/dQw4w9WgXcQ")[0], "https://www.youtube.com/tv#/watch?v=dQw4w9WgXcQ")
+        self.assertEqual(n("Schau mal https://youtu.be/dQw4w9WgXcQ?t=42 !")[0], "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s")
+        self.assertEqual(n("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=x")[0], "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        self.assertEqual(n("https://youtube.com/shorts/dQw4w9WgXcQ")[0], "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         self.assertTrue(n("https://cdn.example.org/film.mp4")[0].startswith("/play.html?src="))
         self.assertEqual(n("ardmediathek.de/video/abc"), ("https://ardmediathek.de/video/abc", "ardmediathek.de"))
         self.assertEqual(n("   ")[0], None)
@@ -262,6 +262,83 @@ class TestExtras(unittest.TestCase):
         self.assertEqual(r["label"], "YouTube")
         self.assertIn("open", ev.types())
         self.assertEqual(call("GET", "/api/links")[1]["recent"][0]["label"], "YouTube")
+
+
+class TestVersion2(unittest.TestCase):
+    """Neue Funktionen aus Version 2 (Brave, sway, Systeminfo, Sicherung …)."""
+    def setUp(self):
+        self.ev = Events()
+
+    def test_wm_keys_learned(self):
+        srv.KEYSTATE["wm"].clear()
+        self.assertEqual(srv.handle_key("KEY_VOLUMEUP", 1), "up")      # ohne sway: evdev regelt
+        code, _ = call("POST", "/api/key", {"key": "volup", "src": "wm"})
+        self.assertEqual(code, 200)
+        self.assertEqual(srv.STATE["lastKey"]["src"], "wm")
+        self.assertIsNone(srv.handle_key("KEY_VOLUMEUP", 1))           # jetzt nicht doppelt
+        srv.KEYSTATE["wm"].clear()
+
+    def test_tile_fields(self):
+        code, t = call("POST", "/api/tiles", {"tile": {"title": "ZDF", "url": "zdf.de", "size": "gross", "open": "kino", "color": "#ff8800", "logo": "/data/images/x.png", "tvMode": True}})
+        self.assertEqual(code, 200)
+        self.assertEqual((t["url"], t["size"], t["open"], t["color"]), ("https://zdf.de", "gross", "kino", "#ff8800"))
+        self.assertNotIn("tvMode", t)
+        code, t2 = call("POST", "/api/tiles", {"tile": {"title": "X", "url": "app:terminal", "size": "riesig", "open": "egal", "color": "red;"}})
+        self.assertEqual((t2["size"], t2["open"], t2["color"], t2["url"]), ("normal", "tab", "", "app:terminal"))
+
+    def test_siteinfo_parse(self):
+        html = """<html><head><title>Startseite | ARD Mediathek</title>
+        <meta name="theme-color" content="#001a4b"><meta content="Filme, Serien und Dokus." property="og:description">
+        <link rel="icon" href="/fav.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple.png"></head></html>"""
+        i = srv.system.parse_siteinfo(html, "https://www.ardmediathek.de/")
+        self.assertEqual(i["title"], "ARD Mediathek")
+        self.assertEqual(i["logo"], "https://www.ardmediathek.de/apple.png")
+        self.assertEqual(i["color"], "#001a4b")
+        self.assertTrue(i["description"].startswith("Filme"))
+
+    def test_backup_roundtrip(self):
+        data = srv.system.backup_zip(srv.DATA_DIR)
+        import zipfile, io
+        self.assertIn("config.json", zipfile.ZipFile(io.BytesIO(data)).namelist())
+        import base64
+        code, r = call("POST", "/api/restore", {"data": base64.b64encode(data).decode()})
+        self.assertEqual(code, 200)
+        code, r = call("POST", "/api/restore", {"data": base64.b64encode(b"kein zip").decode()})
+        self.assertEqual(code, 400)
+
+    def test_general_v2_keys(self):
+        code, g = call("POST", "/api/general", {"ytZoom": 1.5, "nightMode": "auto", "saverStyle": "analog", "evil": 1})
+        self.assertEqual((g["ytZoom"], g["nightMode"], g["saverStyle"]), (1.5, "auto", "analog"))
+        self.assertNotIn("evil", g)
+        code, c = call("GET", "/api/brave/config")
+        self.assertEqual(c["ytZoom"], 1.5)
+
+    def test_recorder_rules(self):
+        code, r = call("POST", "/api/recorder", {"on": False, "rules": [{"topic": "Tatort", "max": 9}, {"topic": ""}]})
+        self.assertEqual(code, 200)
+        self.assertEqual(len(r["config"]["rules"]), 1)
+        self.assertEqual(r["config"]["rules"][0]["max"], 5)
+        code, r = call("GET", "/api/recorder")
+        self.assertIn("items", r)
+
+    def test_remote_name(self):
+        pin = srv.CONFIG["remote"]["pin"]
+        call("GET", "/api/state", headers={"X-Remote-Pin": pin, "X-Remote-Name": "S26"})
+        # Anfragen von 127.0.0.1 gelten als "lokal" – Handy-Liste nur bei echten Handys
+        code, r = call("GET", "/api/remotes")
+        self.assertEqual(code, 200)
+
+    def test_incoming_and_quick(self):
+        code, _ = call("POST", "/api/incoming", {"url": "Guck mal https://www.arte.tv/de/videos/123/"})
+        self.assertEqual(code, 200)
+        self.assertIn("incoming", self.ev.types())
+        call("POST", "/api/quick", {})
+        self.assertIn("quick", self.ev.types())
+
+    def test_static_v2(self):
+        for f in ("/extra.js", "/ambient.html", "/remote"):
+            req = urllib.request.urlopen(BASE + f, timeout=5)
+            self.assertEqual(req.status, 200)
 
 
 if __name__ == "__main__":

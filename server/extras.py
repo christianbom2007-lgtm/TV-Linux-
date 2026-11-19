@@ -251,7 +251,7 @@ def normalize_link(url):
     yt = re.search(r"(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|live/|embed/)|youtu\.be/)([\w-]{11})", url)
     if yt:
         t = re.search(r"[?&]t=(\d+)", url)
-        return "https://www.youtube.com/tv#/watch?v=%s%s" % (yt.group(1), "&t=%ss" % t.group(1) if t else ""), "YouTube"
+        return "https://www.youtube.com/watch?v=%s%s" % (yt.group(1), "&t=%ss" % t.group(1) if t else ""), "YouTube"
     path = urllib.parse.urlparse(url).path.lower()
     if re.search(r"\.(mp4|m3u8|webm|mkv|mov)$", path):
         return "/play.html?src=" + urllib.parse.quote(url, safe="") + "&title=" + urllib.parse.quote("Video"), "Video"

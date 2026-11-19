@@ -1,13 +1,36 @@
 # Lichtung TV – Installationsanleitung
 
-Dein alter Lenovo-Laptop wird zum Fernseh-Gerät: Er startet ohne Anmeldung direkt in eine Oberfläche im Lichtung-Stil, mit Kacheln für YouTube (TV-Ansicht, ohne Werbung), Live-TV, Mediatheken und beliebigen eigenen Websites.
+Dein alter Lenovo-Laptop wird zum Fernseh-Gerät: Er startet ohne Anmeldung direkt in eine Oberfläche im Lichtung-Stil, mit Kacheln für YouTube, Brave, Live-TV, Mediatheken, Musikbox, Ambiente, Programme und beliebige eigene Websites.
 
-> **Achtung:** Bei der Installation wird die Festplatte des Laptops **komplett gelöscht**. Sichere vorher alles, was du noch brauchst.
+> **Achtung:** Bei der Erst-Installation wird die Festplatte des Laptops **komplett gelöscht**. Ein **Update** (Abschnitt U) löscht nichts.
 
 ---
 
-## 0. Der einfachste Weg: fertige ISO (empfohlen)
+## U. Update auf Version 2 (bestehender Laptop)
 
+Version 2 bringt Brave, den Fenstermanager sway (Brave bleibt im Hintergrund offen), reparierte Lautstärketasten, Musikbox, Ambiente, Mediathek-Rekorder, Design-Welten, Netzwerk-Dienste u. v. m. Deine Kacheln, Profile und Fotos bleiben erhalten.
+
+**Weg A – USB-Stick (geht immer, auch bei privatem Repo)**
+1. Am Galaxy Book auf GitHub: **Code → Download ZIP** → `TV-Linux--main.zip` auf einen USB-Stick kopieren.
+2. Am Laptop: **Strg + Alt + F2**, als `root` anmelden (Passwort 123456), dann:
+   ```bash
+   mount /dev/sdb1 /mnt          # Stick (bei Bedarf mit lsblk nachsehen)
+   cd /root && python3 -m zipfile -e /mnt/TV-Linux--main.zip . && umount /mnt
+   cd TV-Linux--main && bash install.sh && reboot
+   ```
+
+**Weg B – direkt aus dem Internet (nur wenn das Repo öffentlich ist)**
+```bash
+cd /root && curl -L https://github.com/christianbom2007-lgtm/TV-Linux-/archive/refs/heads/main.tar.gz | tar xz && cd TV-Linux--main && bash install.sh && reboot
+```
+
+**Künftige Updates** gehen ohne Konsole: *Einstellungen → System & Updates → Nach Updates suchen* (braucht einmal einen GitHub-Token, einfügen über die Handy-Fernbedienung → System) **oder** Handy-Fernbedienung → System → „Update-Datei hochladen“ (die ZIP von GitHub).
+
+Das Update dauert 10–25 Minuten (Brave, KDE Connect, Moonlight usw. werden geladen) und braucht ca. 2–3 GB Platz.
+
+---
+
+## 0. Neu installieren: fertige ISO (empfohlen)
 GitHub baut bei jeder Änderung automatisch eine fertige **lichtung-tv.iso**: offizielles Debian 13 mit Lichtung schon drin.
 
 1. Im Repo auf **Releases** → neueste Version → `lichtung-tv.iso` herunterladen (~800 MB).
@@ -108,29 +131,21 @@ Der Laptop startet jetzt direkt in Lichtung. Ab hier brauchst du keine Konsole m
 
 ## 4. Erster Start: der Einrichtungsassistent
 
-Beim allerersten Start erscheint nach dem Lichtung-Bootbildschirm ein Assistent mit 7 Schritten. Er fragt nach dem **Ort** (Wetter und Himmel), lässt dich den **Ton** testen (HDMI wählen, es ertönt ein kurzer Testton), richtet die **Profile** ein (auf Wunsch eins mit PIN), fragt, welche **Dienste** Kacheln werden sollen, und koppelt das **Handy** per QR-Code. Wiederholen kannst du ihn jederzeit über *Einstellungen → System → Einrichtung wiederholen*.
+Nach dem Lichtung-Bootbildschirm erscheint ein Assistent mit 9 Schritten: **Design** (Pakete mit Live-Vorschau – der Hintergrund ändert sich sofort), **Ort**, **Ton** (Testton), **Profile**, **Dienste als Kacheln**, **Brave** (einmalig uBlock einschalten), **Handy** (QR-Code, KDE Connect). Wiederholen: *Einstellungen → System & Updates → Einrichtung wiederholen*.
 
-Danach:
-1. **Profilauswahl:** Nach 2 Sekunden startet automatisch das Standardprofil (ohne PIN).
-2. **YouTube testen:** Kachel 01. Die erste Seite kann ein paar Sekunden brauchen, weil uBlock Origin beim allerersten Start noch heruntergeladen wird.
-3. **Netflix/Prime/Disney+** (falls gewünscht): Beim ersten Öffnen lädt Firefox automatisch das DRM-Modul (Widevine). Wenn ein Hinweis kommt, „DRM aktivieren“ bestätigen.
-4. **Handy als App:** Nach dem QR-Scan im Browser-Menü „Zum Startbildschirm hinzufügen“.
-
-### Checkliste: 10 Punkte am echten Gerät prüfen
-Diese Punkte konnte ich ohne deinen Laptop nicht testen. Hake sie einmal ab:
-
+### Checkliste am echten Gerät
 | # | Prüfen | Wenn nicht |
 |---|---|---|
-| 1 | Bootbildschirm mit „Lichtung“-Schriftzug erscheint | egal für die Funktion, siehe Abschnitt 7 |
-| 2 | Ton kommt über den Fernseher | *Einstellungen → Ton* → HDMI |
-| 3 | Windows-Taste bringt dich aus YouTube zurück zur Startseite | *Einstellungen → Erweitert*: „Tasten-Dienst aktiv“? |
-| 4 | Lautstärketasten zeigen die Anzeige rechts | wie 3 |
-| 5 | YouTube öffnet in der **TV-Ansicht** | *Erweitert → TV-Kennung* eine andere Konsole wählen |
-| 6 | YouTube ohne Werbung | ein paar Minuten warten (uBlock lädt Filter) |
-| 7 | Live-TV: Das Erste läuft, darunter steht „Jetzt / Danach“ | Programmführer lädt beim ersten Start bis zu 1 Minute |
-| 8 | Mediathek-Reihen zeigen Sendungen und spielen ab | Internet prüfen |
-| 9 | Handy: Steuerkreuz und „Link aufs TV“ funktionieren | gleiches WLAN? Code neu erzeugen |
-| 10 | Schlaf-Timer 1 Minute über Handy → Bildschirm geht aus, Taste weckt ihn | Aktion „Pausieren“ wählen |
+| 1 | Bootbildschirm erscheint | *Start & Boot* → andere Bootanimation |
+| 2 | Ton über den Fernseher | *Ton* → HDMI |
+| 3 | **Lautstärketasten** zeigen die Anzeige – auch in Brave (Balken oben rechts) | *System & Updates → Systeminfo → „Letzte Taste“* |
+| 4 | Windows-Taste bringt dich aus Brave zur Startseite, Brave-Tabs bleiben offen | wie 3 |
+| 5 | Kachel „YouTube“ öffnet das Kino-Fenster | *Browser & YouTube* |
+| 6 | YouTube ohne Werbung | Brave → `brave://settings/extensions/v2` → uBlock Origin an |
+| 7 | Live-TV mit „Jetzt / Danach“ | Programmführer lädt bis zu 1 Minute |
+| 8 | Handy: Steuerkreuz und „Link aufs TV“ | gleiches WLAN? Code neu erzeugen |
+| 9 | Musikbox: Handy findet „Lichtung Musik“ per Bluetooth | *Bluetooth* → Adapter an? |
+| 10 | Terminal: Strg+Alt+T, dann `lichtung status` | – |
 
 ---
 
@@ -138,140 +153,106 @@ Diese Punkte konnte ich ohne deinen Laptop nicht testen. Hake sie einmal ab:
 
 | Taste | Wirkung |
 |---|---|
-| ← ↑ → ↓ | bewegen |
-| Enter / OK | öffnen |
-| Enter **lang drücken**, ☰-Taste, **M** oder Rechtsklick | Optionen zur Kachel (bearbeiten, verschieben, löschen) |
+| ← ↑ → ↓ / Enter | bewegen / öffnen |
+| Enter **lang**, ☰, **M**, Rechtsklick | Optionen zur Kachel |
 | Esc / Zurück / Rücktaste | zurück |
-| **Windows-Taste**, **F1** oder Home-Taste der Fernbedienung | **von überall zurück zur Startseite** |
-| 1–9 | Kachel direkt öffnen |
-| S | Einstellungen |
-| T | Schlaf-Timer |
-| Lautstärketasten | Lautstärke + Anzeige rechts |
-| Live-TV: ↑ ↓ / Bild↑ Bild↓ / Ziffern | Sender wechseln |
-| Live-TV: Enter | Senderliste |
-| Auf Webseiten: Strg + / Strg − | Seite größer/kleiner |
+| **Windows-Taste**, F1, Home | **von überall** zur Startseite – Brave & Programme laufen weiter |
+| Windows + Tab | zwischen Startseite, Brave und Programmen wechseln |
+| Windows + Q · Taste Q | Schnellmenü (Lautstärke, Tonausgang, Abendmodus, Bildschirm aus, Schlaf-Timer) |
+| Windows + B · Taste B | Brave |
+| Strg + Alt + T | Terminal |
+| / | in die Suchleiste |
+| 1–9 · S · T | Kachel direkt · Einstellungen · Schlaf-Timer |
+| Lautstärketasten | überall, mit Anzeige |
 
-**Maus / Air-Mouse / Touchpad funktionieren überall.** Normale Webseiten wie die Mediatheken sind nicht für Pfeiltasten gebaut. Dort ist eine Air-Mouse oder das Handy-Touchpad am angenehmsten.
-
-### Mediathek auf der Startseite
-Unter den Kacheln stehen Reihen mit aktuellen Sendungen: **Neu in der Mediathek**, **tagesschau** (20 Uhr), **Tatort & Krimi**, **Terra X & Dokus**. Ganz vorn ist **Mediathek durchsuchen**. Sendungen laufen im eigenen **Lichtung-Player**, ohne Webseite, also komplett per Fernbedienung (OK = Pause, ← → = 10 s, gedrückt halten = schneller, ↑ ↓ = 5 Min.). Was du anfängst, landet in *Weiterschauen*. Die Daten kommen aus dem offenen Verzeichnis von MediathekViewWeb.
-
-### Lebendiger Hintergrund
-Der Himmel folgt dem echten Sonnenstand in deinem Ort (Nacht, Blaue Stunde, Abendrot, Tag), zeigt den Mond mit echter Mondphase, Sterne und gelegentlich Sternschnuppen. Dazu kommt das echte Wetter: Wolken nach Bewölkung, die mit dem Wind ziehen, Regen, Niesel, Schnee, Nebel, Gewitter mit Blitzen. Im Winter liegen Schneekappen auf den Bergen, in Sommernächten fliegen im Nebelwald Glühwürmchen, tagsüber ziehen manchmal Vögel vorbei. Unter *Einstellungen → Aussehen* gibt es Animation (Aus/Sanft/Voll), Wetter-Effekte, Polarlicht und eine **Vorschau**, mit der du jedes Wetter und jede Tageszeit ausprobieren kannst.
-
-### Schlaf-Timer
-Taste **T** (oder der Mond-Knopf oben): 15 bis 120 Minuten. Danach wird pausiert und, je nach Einstellung, der Bildschirm ausgeschaltet oder der Laptop heruntergefahren. 60 Sekunden vorher kommt eine Warnung. Eine beliebige Taste verlängert um 15 Minuten.
-
-### Designarten
-Unter *Einstellungen → Aussehen → Designart* (oder am Handy unter Aussehen, oder gleich im Einrichtungsassistenten): **Lichtung** (Serif & Natur), **Kino** (tiefschwarz, große Kacheln), **Glas** (rund und hell schimmernd), **Hell** (für tagsüber), **Neon** (leuchtend). Hintergrund, Wetter-Effekte und Akzentfarbe lassen sich mit jeder Designart kombinieren.
-
-### Handy spiegeln
-- **Android (z. B. Galaxy S25 Ultra), beste Qualität mit Ton:** über scrcpy und Wireless-Debugging.
-  - *Einmalig:* Entwickleroptionen einschalten (Einstellungen → Telefoninfo → Softwareinformationen → 7× auf „Buildnummer“ tippen). Dann Entwickleroptionen → **Wireless-Debugging** an → „Gerät mit QR-Code koppeln“ → den QR-Code scannen, den die Kachel „Handy spiegeln“ → *Handy koppeln (QR)* zeigt.
-  - *Jedes Mal:* Wireless-Debugging einschalten (geht auch als Schnelleinstellungs-Kachel) → am TV oder in der Handy-Fernbedienung **„Android spiegeln“**. Beenden mit der Home-Taste.
-  - Ehrlich gesagt: Samsung schaltet Wireless-Debugging nach einem Neustart oder WLAN-Wechsel manchmal wieder aus. Dann einfach wieder einschalten, neu koppeln musst du nicht.
-- **Android ohne Entwicklermodus:** App **ScreenStream** (Play Store / F-Droid), Modus „Lokal“. Die angezeigte Adresse in der Kachel eingeben oder per „Link aufs TV“ schicken. Nur Bild, kein Ton, leichte Verzögerung.
-- **iPhone/iPad:** Kontrollzentrum → Bildschirmsynchronisierung → „Lichtung“. Der ganze Bildschirm erscheint im Vollbild (AirPlay über UxPlay).
-- **YouTube (Android & iPhone):** In der YouTube-TV-Ansicht unter Einstellungen „Mit Smartphone verbinden“ den TV-Code anzeigen, in der YouTube-App eingeben, dann per Cast-Symbol Videos schicken.
-- **Samsung Smart View / Miracast** funktioniert unter Linux nicht zuverlässig, deshalb die Wege oben.
-- Die Kachel **„Handy spiegeln“** zeigt diese Anleitung auch am Fernseher.
-
-### Handy-Fernbedienung
-- **Steuern:** Steuerkreuz, OK, Zurück, Start, Lautstärke, Pause, Vollbild
-- **Maus:** Touchpad (wischen = Zeiger, tippen = Klick, rechter Streifen = scrollen)
-- **Steuern:** zusätzlich Schlaf-Timer (30/60/90 Min.) und „Bildschirm aus“
-- **Text & Link:** Text am Handy schreiben, er erscheint im aktiven Feld am Fernseher (z. B. YouTube-Suche, Passwörter). Darüber: **Link aufs TV**. Einen Link einfügen (z. B. aus WhatsApp) und auf Öffnen tippen. YouTube-Links öffnen in der TV-Ansicht, Videodateien im Lichtung-Player, alles andere als Webseite. Die letzten 8 Links bleiben gespeichert.
-- **Kacheln:** bearbeiten, neue anlegen, **eigene Fotos als Kachelbild hochladen**, Profil wechseln
-- **Aussehen:** eigene Fotos als Hintergrund (lange drücken = entfernen)
+### Was es alles gibt
+- **Brave** – ganz normaler Browser mit Tabs, Adressleiste, Lesezeichenleiste (Mediatheken). Erweiterungen automatisch: uBlock Origin, Return YouTube Dislike, Unhook, Dark Reader, Bonjourr (+ SponsorBlock, DeArrow wählbar). Eigene Lichtung-Erweiterung: Weiterschauen, **YouTube-Kinomodus**, **Auto-HD**, **TV-Zoom**, **gleiche Lautstärke**. Pro Lichtung-Profil eigene Brave-Logins.
+- **Kacheln** – Adresse eintippen → „Automatisch“ holt Titel, Text, Logo und Farbe. Größen Klein/Normal/Groß/Banner. Öffnen als Brave-Tab oder Kino-Fenster. Programme als Kacheln. Lesezeichen → Kacheln.
+- **Startseite** – Suchleiste, Knöpfe (Brave, YouTube, Mediathek, Zufallsdoku, Webcams, Programme, Terminal, Schnellmenü), **Zuletzt besucht**, **Aufnahmen**, Wetter mit 3-Tage-Vorhersage, **Systemwerte** (CPU, RAM, Temperatur, Netz).
+- **Musikbox** – Handy per Bluetooth mit „Lichtung Musik“ verbinden, Titel & Fortschritt groß am TV. iPhone per AirPlay.
+- **Ambiente** – Kaminfeuer, Regen am Fenster, Aquarium, Nordlicht, Meeresrauschen, Waldsee – mit Klang (← → wechseln, ↑ ↓ Klang).
+- **Live-Webcams** – Kieler Förde & Co. ansehen oder (YouTube-Live/.m3u8) als Hintergrund.
+- **Zufallsdoku** – lange Doku aus Terra X, arte, ZDFinfo, 3sat …
+- **Mediathek-Rekorder** – lädt neue Folgen deiner Sendungen (z. B. Tatort) automatisch herunter, offline abspielbar, löscht alte selbst.
+- **Design** – 19 Design-Pakete: Lichtung-Landschaften (Bergnacht, Waldsee, Leuchtturm, Hafenstadt, Tundra & Nordlicht, Alpen …) und eigene **Design-Welten** im Stil von Apple TV (*Cupertino*), Samsung (*One*), Fire TV (*Flamme*), Xbox (*Konsole*), Windows 11 (*Fenster*), GNOME (*Adwaita*), KDE (*Breeze*), Ubuntu (*Aubergine*) und *Terminal* (Code-Regen). Alles dunkel. Jahreszeiten-Modus, Abendmodus (wärmeres Licht über allem), 4 Bildschirmschoner-Stile.
+- **Start & Boot** – 3 Lichtung-Bootanimationen (+ Lenovo-Logo u. a.), Bootmenü im Lichtung-Design an/aus.
+- **Programme** – Terminal (`lichtung`-Menü, `btop`), App-Store (Flathub, ohne Passwort), Retro-Spiele (RetroArch), **Galaxy Book als Bildschirm** (Moonlight ↔ Sunshine).
+- **Handy** – Fernbedienung im Browser (mehrere Handys, Musikbox-Steuerung, Sicherung, Update-Upload), **KDE Connect** (Medien, Lautstärke, „Teilen → lichtung“, Pause bei Anruf), Android-/iPhone-Spiegeln, Samsung Smart View (experimentell), Wake-on-LAN.
+- **Netzwerk-Dienste** (alle aus, bis du sie einschaltest): AdGuard Home (Werbeblocker fürs WLAN), Tailscale, Vaultwarden (Bitwarden, HTTPS über Tailscale), Syncthing, Uptime Kuma, Gitea-Spiegel, **Bau-Station** (GitHub-Actions-Runner für deine Apps).
+- **Energie** – Auto-Aus nach X Stunden ohne Eingabe (Bildschirm aus oder ganz aus), Schlaf-Timer.
 
 ---
 
 ## 6. Worauf du achten solltest (ehrlich)
 
-- **YouTube ohne Werbung** läuft über uBlock Origin. YouTube kämpft aktiv gegen Werbeblocker. Es kann also mal ein paar Tage Werbung oder Fehlermeldungen geben, bis uBlock ein Update hat (kommt automatisch).
-- **YouTube-TV-Ansicht** (`youtube.com/tv`) zeigt sich nur, wenn der Browser sich als Fernseher ausgibt. Falls YouTube das irgendwann blockiert: Unter *Einstellungen → Erweitert → TV-Kennung* eine andere Kennung eintragen oder die Kachel auf „YouTube (normal)“ umstellen.
-- **Netflix & Co.** laufen unter Linux in Firefox nur in **max. 720p–1080p**, nicht in 4K. Das ist eine Sperre der Anbieter.
-- **Logins sind für alle Profile gleich.** Profile trennen Kacheln und Weiterschauen, aber nicht die Browser-Anmeldungen (YouTube-Konto, Netflix …).
+- **uBlock Origin in Brave** läuft über Braves eigene Manifest-V2-Unterstützung. Einmalig unter `brave://settings/extensions/v2` einschalten. Brave blockt auch ohne uBlock schon viel Werbung (Schutzschild auf „Aggressiv“).
+- **Samsung Smart View (Miracast)** ist unter Linux wackelig und geht nur mit WLAN-Chips, die „Wi-Fi Direct“ können. Solange der Empfänger läuft, ist das WLAN-Internet weg. Zuverlässig: KDE Connect bzw. Spiegeln per scrcpy.
+- **Bluetooth-Musikbox** braucht einen Bluetooth-Chip im Laptop.
+- **Galaxy Book als zweiter Bildschirm** braucht Sunshine + „Virtual Display Driver“ auf Windows (einmal selbst installieren).
+- **Bau-Station**: Während eines Flutter-Builds ist der Laptop 2–5 Minuten voll ausgelastet; Android-SDK & Flutter brauchen 5–8 GB.
+- **Vaultwarden** nur über Tailscale-HTTPS nutzen (in der Tailscale-Verwaltung „HTTPS Certificates“ aktivieren). Zusätzlich Zwei-Faktor in Bitwarden einschalten.
+- **Netflix & Co.** laufen unter Linux nur bis 720p–1080p (Sperre der Anbieter).
+- **Live-TV-Streams / Programmführer / Mediathek** hängen an freien Quellen, die sich ändern können.
 - **Die PIN ist eine Familien-Sperre, kein Hochsicherheitsschloss.**
-- **Programmführer (Jetzt/Danach)** kommt aus einer freien XMLTV-Quelle (iptv-epg.org). Solche Quellen können ausfallen. Dann läuft Live-TV normal weiter, nur ohne Programmzeile. Eine andere Quelle kannst du in der Konfiguration (`epgUrl`) eintragen.
-- **Mediathek-Reihen** hängen am Dienst MediathekViewWeb. Ist er nicht erreichbar, siehst du einen Hinweis statt Sendungen. Die Mediathek-Kacheln funktionieren trotzdem.
-- **Live-TV-Streams** sind die offiziellen Streams der Sender. Sie funktionieren nur in Deutschland, und die Sender ändern ihre Adressen gelegentlich. Neue Adressen kannst du unter *Live-TV-Sender* eintragen.
-- **Weiterschauen** merkt sich Videos ab 2 Minuten Länge, sobald du mehr als 30 Sekunden geschaut hast. Bei über 95 % gilt das Video als fertig.
-- **Deckel zuklappen** ist erlaubt. Der Laptop geht nicht in den Ruhezustand. Zum Ausschalten: *Einstellungen → System → Ausschalten* oder kurz den Einschaltknopf drücken.
-- **Updates:** Sicherheitsupdates (inkl. Firefox) installiert Debian automatisch. Für ein neues Lichtung-Paket einfach `bash install.sh` aus dem neuen Ordner erneut ausführen. Deine Kacheln und Profile bleiben erhalten.
 
 ---
 
 ## 7. Wartung & Fehlersuche
 
-**An die Konsole kommen:** `Strg + Alt + F2` → als `root` oder `chris` anmelden. **Zurück zum Fernseher:** `Strg + Alt + F1`.
+**Terminal**: Strg+Alt+T (oder Kachel/Knopf „Terminal“). Befehl `lichtung` zeigt ein Menü: Status, btop, Programme suchen/installieren, Logs, Neustart, Update. Root für `apt`: `su -`.
 
-**Bootmenü** (z. B. für Notfälle oder einen älteren Kernel): beim Einschalten **Esc** oder **Shift** gedrückt halten.
+**Konsole ohne Oberfläche**: Strg+Alt+F2 → `root`/`chris`. Zurück: Strg+Alt+F1.
 
 | Problem | Lösung |
 |---|---|
-| Schwarzer Bildschirm nach dem Start | `Strg+Alt+F2`, anmelden, `cat /tmp/lichtung-session.log` ansehen. Oft hilft `reboot`. |
-| Kein Ton | *Einstellungen → Ton* → HDMI wählen. Am Fernseher den richtigen Eingang/Lautstärke prüfen. |
-| Video ruckelt | Konsole: `vainfo` muss Profile wie `VAProfileH264` zeigen. Sonst ist die Videobeschleunigung aus. Bei älteren Intel-Chips hilft die Firefox-Erweiterung „enhanced-h264ify“. |
-| Home-/Lautstärketasten gehen nicht | *Einstellungen → Erweitert* zeigt, ob der Tasten-Dienst läuft. Neustart probieren. |
-| Handy verbindet nicht | Gleiches WLAN? Adresse und Code stehen unter *Handy-Fernbedienung*. „Neuen Code erzeugen“ und QR neu scannen. |
-| WLAN später ändern | Konsole als root: `nmtui` |
-| Alles auf Anfang | Konsole als root: `rm /home/tv/.local/share/lichtung-tv/config.json` und `reboot` |
-| Dienst-Protokoll | `journalctl _UID=$(id -u tv) -n 80` |
+| Schwarzer Bildschirm | Strg+Alt+F2, `cat /tmp/lichtung-session.log`, `reboot` |
+| Lautstärke-/Windows-Taste geht nicht | *Systeminfo* → „Letzte Taste“ und „Lautstärke über …“. Kommt die Taste nicht an: Fn-Taste mit drücken. |
+| Kein Ton | Schnellmenü → Tonausgang HDMI |
+| Brave hängt | Schnellmenü → „Brave neu starten“ |
+| Update-Protokoll | `/var/log/lichtung-update.log` |
+| Dienst-Protokoll | `lichtung logs` |
+| Alles auf Anfang | als root: `rm /home/tv/.local/share/lichtung-tv/config.json && reboot` |
 
-**Wichtige Orte:**
-- Programm: `/opt/lichtung-tv/`
-- Deine Daten (Kacheln, Profile, Fotos): `/home/tv/.local/share/lichtung-tv/`
-- Sitzungs-Einstellungen (Tastatur, Bildschirm): `/etc/lichtung-tv/session.conf`
+**Wichtige Orte:** Programm `/opt/lichtung-tv/` · Daten `/home/tv/.local/share/lichtung-tv/` (Aufnahmen in `aufnahmen/`) · Sitzung `/etc/lichtung-tv/session.conf` · Brave-Richtlinien `/etc/brave/policies/managed/` · Root-Helfer `/usr/local/sbin/lichtung-admin`
 
 ---
 
-## 8. Wie das Ganze aufgebaut ist (zum Verstehen und Weiterbauen)
+## 8. Wie das Ganze aufgebaut ist
 
 ```
-Einschalten
-  └─ GRUB (1 s) → Debian
-       └─ automatische Anmeldung als Benutzer „tv“ auf Konsole 1
-            ├─ lichtung-tv.service   Python-Dienst (Port 8770)
-            │     Kacheln/Profile speichern, Wetter, Lautstärke,
-            │     Home-/Lautstärketasten mitlesen (evdev),
-            │     virtuelle Tastatur fürs Handy (uinput)
-            └─ session.sh → cage (zeigt EIN Programm im Vollbild)
-                  └─ Firefox ESR im Kiosk-Modus
-                        ├─ Startseite  http://127.0.0.1:8770/
-                        ├─ uBlock Origin (Werbung weg)
-                        └─ Lichtung-Erweiterung: Home-Taste, Lautstärke-Anzeige,
-                           Weiterschauen, TV-Kennung für youtube.com/tv
+Einschalten → GRUB (Lichtung-Design, versteckt) → Plymouth-Bootanimation
+  └─ automatische Anmeldung als „tv“ auf Konsole 1
+       ├─ lichtung-tv.service   Python-Dienst (Port 8770): API, Kacheln, Wetter, Lautstärke,
+       │                        Tasten, Brave/sway-Steuerung, Bluetooth, KDE Connect, Rekorder …
+       └─ session.sh → sway (Fenstermanager ohne sichtbare Fenster)
+             ├─ Ebene 1: Firefox-Kiosk → Lichtung-Startseite, Live-TV, Player, Ambiente
+             ├─ Ebene 2: Brave (normaler Browser, Tabs bleiben offen)
+             ├─ Ebene 3: Programme (Terminal, App-Store, Spiele, Moonlight)
+             ├─ Ebene 4: Brave-Kinofenster (YouTube ohne Leisten)
+             └─ wob (Lautstärke-Anzeige), wlsunset (Abendmodus), UxPlay, KDE Connect
 ```
 
 | Datei | Was sie macht |
 |---|---|
-| `server/lichtung_server.py` | Hintergrunddienst: Webserver + API, Profile, Weiterschauen, Wetter, Tasten, Lautstärke, Ton-Ausgang |
-| `web/index.html`, `app.js`, `app.css` | Startoberfläche: Profilauswahl, Kacheln, Einstellungen, Bildschirmschoner |
-| `web/common.js` | Gemeinsame Bausteine, v. a. die **Pfeiltasten-Navigation** (springt zum räumlich nächsten Element) |
-| `web/bg.js` | Zeichnet die Naturhintergründe per Code |
-| `web/live.html` | Live-TV-Player (hls.js) mit Jetzt/Danach |
-| `web/play.html` | Lichtung-Player für Mediathek und Links |
-| `web/scene.js` | Lebendiger Hintergrund (Sonne, Mond, Wetter, Animation) |
-| `web/features.js` | Mediathek-Reihen, Suche, Schlaf-Timer, Links |
-| `web/setup.js` | Einrichtungsassistent |
-| `server/extras.py` | Mediathek-Abfragen, Programmführer, Link-Erkennung |
-| `system/plymouth/` | Bootbildschirm |
-| `tests/` | automatische Tests (Dienst + Oberfläche) |
-| `iso/` | Bau der fertigen Installations-ISO (Antwortdatei, Bootmenü, Bauskript) |
-| `.github/workflows/iso.yml` | GitHub baut die ISO automatisch und stellt sie unter Releases bereit |
-| `web/remote.html` | Handy-Fernbedienung (inkl. Link aufs TV, Schlaf-Timer) |
-| `extension/` | Firefox-Erweiterung (Brücke zwischen Webseiten und Dienst) |
-| `system/` | Startskripte, Firefox-Einstellungen, Ton-Regel |
-| `install.sh` | richtet alles ein |
-| `defaults/config.json` | Startkonfiguration (Kacheln, Sender, Kiel als Ort) |
+| `server/lichtung_server.py` | Dienst: Webserver + API, Profile, Weiterschauen, Tasten, Lautstärke |
+| `server/system.py` | sway, Brave, Programme, Abendmodus, Bluetooth, KDE Connect, Musikbox, Rekorder, Systeminfo, Updates |
+| `server/extras.py` | Mediathek, Programmführer, Link-Erkennung |
+| `web/app.js`, `extra.js` | Startseite, Einstellungen, Schnellmenü, Design-Pakete |
+| `web/scene.js` | lebendige Landschaften + Design-Welt-Hintergründe |
+| `web/ambient.html` | Ambiente (Kamin, Regen, Aquarium …) |
+| `web/remote.html` | Handy-Fernbedienung |
+| `brave-extension/` | Brave-Erweiterung (Weiterschauen, Kinomodus, Auto-HD, Zoom, Lautstärke) |
+| `system/sway.conf` | Ebenen und Tastenkürzel |
+| `system/lichtung-admin` | Root-Helfer (Update, Boot, Dienste) – per sudo nur dieses Skript |
+| `system/lichtung` | Terminal-Befehl |
+| `system/grub/`, `system/plymouth/` | Bootmenü und Bootanimationen |
+| `install.sh` | richtet alles ein (= Update) |
 
-Alle Dateien sind ausführlich auf Deutsch kommentiert.
-
-### Tests selbst laufen lassen
+### Tests
 ```bash
-python3 tests/test_server.py      # 18 Tests: API, Profile/PIN, Weiterschauen, Tasten, Tippen, Mediathek, Programmführer, Schlaf-Timer, Links
-python3 tests/ui_test.py          # 66 Oberflächen-Tests (braucht Playwright + Chrome und einen laufenden Dienst)
+python3 tests/test_server.py      # 27 Tests: API, Profile, Kacheln, Tasten, Sicherung, Rekorder, Version 2
+python3 tests/ui_test.py          # 66 Oberflächen-Tests (Playwright + Chrome, Dienst auf :8770)
+python3 tests/ui_test_v2.py       # 35 Tests für Version 2 (Design-Welten, Musikbox, Ambiente …)
 ```
 
-Schriften: Fraunces und JetBrains Mono (SIL Open Font License). Live-TV: hls.js (Apache-2.0). QR-Codes: qrcode-generator (MIT). Wetter: Open-Meteo.
+Schriften: Fraunces und JetBrains Mono (SIL OFL). hls.js (Apache-2.0), qrcode-generator (MIT), Wetter: Open-Meteo.

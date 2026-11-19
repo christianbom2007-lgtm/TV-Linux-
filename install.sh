@@ -23,6 +23,8 @@ getent hosts deb.debian.org >/dev/null 2>&1 || fail "Keine Internetverbindung. E
 
 # --------------------------------------------------------------------------
 step "1/9  Paketquellen prüfen (contrib, non-free-firmware für Treiber)"
+# Den Installations-Stick als Paketquelle entfernen (sonst bricht apt ab, sobald der Stick fehlt)
+[ -f /etc/apt/sources.list ] && sed -i -E '/cdrom:/s/^deb/# deb/' /etc/apt/sources.list
 # Debian 13 nutzt das neue Format in /etc/apt/sources.list.d/debian.sources
 if [ -f /etc/apt/sources.list.d/debian.sources ]; then
   sed -i -E '/^Components:/ { /non-free-firmware/! s/$/ non-free-firmware/; /contrib/! s/$/ contrib/; /non-free( |$)/! s/$/ non-free/ }' /etc/apt/sources.list.d/debian.sources

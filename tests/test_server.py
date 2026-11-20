@@ -340,6 +340,48 @@ class TestVersion2(unittest.TestCase):
             req = urllib.request.urlopen(BASE + f, timeout=5)
             self.assertEqual(req.status, 200)
 
+    def test_pause_browsers_only(self):
+        calls = []
+        def fake_run(cmd, timeout=None):
+            calls.append(cmd)
+            return (0, "brave.instance1234\nbluez_player /org/bluez/hci0\nfirefox.instance99\n") if cmd[1] == "-l" else (0, "")
+        old_run, old_which = srv.system.run, srv.system.shutil.which
+        srv.system.run, srv.system.shutil.which = fake_run, lambda n: "/usr/bin/" + n
+        try:
+            paused = srv.system.pause_browsers()
+        finally:
+            srv.system.run, srv.system.shutil.which = old_run, old_which
+        self.assertEqual(paused, ["brave.instance1234", "firefox.instance99"])   # Musikbox läuft weiter
+        self.assertNotIn(["playerctl", "-p", "bluez_player", "pause"], calls)
+
+    def test_kino_window_reused(self):
+        class FakeSway:
+            available = True
+            def __init__(self): self.wins, self.cmds, self.execs = [], [], []
+            def windows(self): return self.wins
+            def workspace(self, n): self.cmds.append(("ws", n))
+            def msg(self, *a, kind=None): self.cmds.append(a)
+            def focus_app(self, p): return False
+            def exec(self, args): self.execs.append(args)
+        sw = FakeSway()
+        b = srv.system.Brave(sw, tempfile.mkdtemp(), ROOT, log=lambda *a: None)
+        b.stop_others = lambda g, p: None
+        old = srv.system.brave_bin
+        srv.system.brave_bin = lambda: "/usr/bin/brave-browser"
+        try:
+            b.open({}, "standard", "https://www.youtube.com/", "kino")
+            self.assertEqual(len(sw.execs), 1)                          # erstes Mal: öffnen
+            sw.wins = [{"app_id": "brave-www.youtube.com__-Default", "id": 7, "ws": 4}]
+            r = b.open({}, "standard", "https://www.youtube.com/", "kino")
+            self.assertTrue(r.get("focused"))                           # zweites Mal: nach vorne holen
+            self.assertEqual(len(sw.execs), 1)
+            b.open({}, "standard", "https://www.youtube.com/watch?v=abc", "kino")
+            self.assertIn(("[con_id=7]", "kill"), sw.cmds)               # andere Adresse: ersetzen
+            self.assertEqual(len(sw.execs), 2)
+        finally:
+            srv.system.brave_bin = old
+        self.assertFalse(srv.system.Brave.kino_window_for("brave-browser", "www.youtube.com"))
+
     def test_sway_exec_keeps_commas(self):
         # Regression: sway trennt Befehle an Kommas – die Brave-Adresse ging verloren
         line = srv.system.Sway.exec_line(["brave-browser", "--enable-features=A,B,C", "https://www.ardmediathek.de/"])

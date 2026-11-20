@@ -334,6 +334,9 @@ def go_home():
     except NameError:
         pass
     STATE["saverReturn"] = None
+    if CONFIG["general"].get("pauseOnHome", True):
+        # Ton aus Brave anhalten – im Hintergrund, damit die Startseite sofort kommt
+        threading.Thread(target=system.pause_browsers, daemon=True).start()
     broadcast("home", url=LAUNCHER_URL)
 
 
@@ -1211,7 +1214,7 @@ class Handler(BaseHTTPRequestHandler):
                            "braveScale", "braveProfiles", "ytZoom", "ytCinema", "ytQuality", "normalize", "webZoom",
                            "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle",
                            "autoOffHours", "autoOffAction", "bigWeather", "showRecent", "quickbar", "searchEngine",
-                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate"}
+                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate", "pauseOnHome"}
                 for k, v in body.items():
                     if k in allowed:
                         CONFIG["general"][k] = v

@@ -210,6 +210,13 @@ class Brave:
         self.data_dir = data_dir
         self.app_dir = app_dir
         self.log = log
+        self.last_kino = {}            # Website → zuletzt im Kino-Fenster geöffnete Adresse
+
+    @staticmethod
+    def kino_window_for(app_id, host):
+        """Brave nennt Kino-Fenster (--app=URL) z. B. "brave-www.youtube.com__-Default"."""
+        app_id = (app_id or "").lower()
+        return bool(host) and app_id.startswith("brave-") and app_id != "brave-browser" and host in app_id
 
     @property
     def available(self):
@@ -255,6 +262,19 @@ class Brave:
         self.stop_others(g, profile_id)
         args = self.base_args(g, profile_id)
         if mode == "kino" and url:
+            # Kino-Fenster gibt es nur EINMAL pro Website: erneuter Klick holt es
+            # wieder nach vorne (Video läuft an der Stelle weiter). Nur bei einer
+            # anderen Adresse (z. B. "Weiterschauen" mit Video-Link) wird es ersetzt.
+            if self.sway.available:
+                host = (urllib.parse.urlparse(url).hostname or "").lower()
+                same = [w for w in self.sway.windows() if self.kino_window_for(w["app_id"], host)]
+                if same and self.last_kino.get(host, url) == url:
+                    self.sway.workspace(4)
+                    self.sway.msg("[con_id=%d]" % same[0]["id"], "focus")
+                    return {"ok": True, "ws": 4, "focused": True}
+                for w in same:                     # andere Adresse: altes Fenster schließen
+                    self.sway.msg("[con_id=%d]" % w["id"], "kill")
+                self.last_kino[host] = url
             args.append("--app=" + url)
             ws = 4
         else:
@@ -613,6 +633,20 @@ def pause_all_media():
     """Alles anhalten, was gerade spielt (Brave, Firefox, Spiele …) über MPRIS."""
     if shutil.which("playerctl"):
         run(["playerctl", "-a", "pause"], timeout=4)
+
+
+def pause_browsers():
+    """Videos in Brave/Firefox anhalten (z. B. beim Druck auf die Windows-Taste).
+    Nur Browser – Musik vom Handy über die Musikbox (Bluetooth) läuft weiter."""
+    if not shutil.which("playerctl"):
+        return []
+    rc, out = run(["playerctl", "-l"], timeout=3)
+    paused = []
+    for player in out.split() if rc == 0 else []:
+        if re.match(r"^(brave|chromium|chrome|firefox)", player, re.I):
+            run(["playerctl", "-p", player, "pause"], timeout=3)
+            paused.append(player)
+    return paused
 
 
 def media_playing():

@@ -802,16 +802,30 @@ function renderSection(keepFocus) {
       break;
     }
     case 'audio': {
-      head('Ton', 'Wohin der Ton geht. Beim Fernseher am HDMI-Kabel meist „HDMI“ oder „Digital Stereo (HDMI)“. HDMI wird automatisch bevorzugt, sobald es angeschlossen ist.');
+      head('Ton', 'Klang und wohin der Ton geht. „Beide“ spielt gleichzeitig über Laptop und Fernseher.');
       const box = h('div', { class: 'menu-list', style: { maxWidth: 'calc(80*var(--u))' } }, h('div', { class: 'lead' }, 'Lade …'));
-      add(box);
+      const klangBox = h('div');
+      add(klangBox, h('div', { class: 'lead', style: { marginTop: 'calc(2*var(--u))' } }, 'Einzelner Ausgang'), box);
       api('/api/audio').then((a) => {
+        const st = a.settings || {};
+        const setK = async (patch, msg) => { L.toast(msg + ' – Ton ist kurz weg …', 4000); await api('/api/audio/klang', 'POST', patch); };
+        klangBox.innerHTML = '';
+        klangBox.append(
+          field('Klang', segmented([['aus', 'Aus'], ...(a.presets || []).map((p) => [p.id, p.title])], st.klang || 'aus', (v) => setK({ klang: v }, 'Klang: ' + (((a.presets || []).find((p) => p.id === v) || {}).title || 'Aus'))),
+            '„Warm“ nimmt kleinen Monitor-Lautsprechern das Blecherne, „Sprache klar“ hilft bei Nachrichten und Filmen'),
+          field('Ausgabe', segmented([['beide', 'Laptop + Fernseher'], ['einzeln', 'Einzeln']], st.output || 'beide', (v) => setK({ output: v }, v === 'beide' ? 'Beide Lautsprecher' : 'Einzelner Ausgang')),
+            'Bei „Beide“ kann der Fernseher minimal nachhallen (er gibt den Ton etwas später aus)'));
         box.innerHTML = '';
-        if (!a.sinks.length) box.append(h('div', { class: 'lead' }, 'Keine Ausgänge gefunden (PipeWire läuft nicht?).'));
-        a.sinks.forEach((sk) => box.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); L.toast('Ton über ' + sk.name); renderSection(true); } },
-          h('span', {}, sk.name), h('span', { class: 'k' }, (sk.default ? 'aktiv ✓ ' : '') + (sk.hdmi ? 'HDMI' : '')))));
+        const real = (a.sinks || []).filter((sk) => !sk.virtual);
+        if (!real.length) box.append(h('div', { class: 'lead' }, 'Keine Ausgänge gefunden (PipeWire läuft nicht?).'));
+        real.forEach((sk) => {
+          const on = st.output === 'einzeln' ? st.sink === sk.node : (!st.klang || st.klang === 'aus') && st.output !== 'beide' && sk.default;
+          box.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); L.toast('Ton über ' + sk.name); renderSection(true); } },
+            h('span', {}, sk.name.replace(/Headphones|Kopfhörer/i, 'Laptop (Lautsprecher/Kopfhörer)')), h('span', { class: 'k' }, (on ? 'aktiv ✓ ' : '') + (sk.hdmi ? 'HDMI' : ''))));
+        });
         if (S.view === 'settings' && !$('#s-body').contains(Nav.current)) return;
-        if (a.sinks.length) Nav.focus(box.firstElementChild, { instant: true });
+        const f = klangBox.querySelector('[data-nav]') || box.firstElementChild;
+        if (f) Nav.focus(f, { instant: true });
       });
       add(field('Lautstärke-Schritt', stepper(Number(g.volumeStep || 5), { min: 1, max: 20, step: 1, fmt: (v) => v + ' %' }, (v) => saveGeneral({ volumeStep: v })), 'Pro Tastendruck'));
       add(h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: () => api('/api/key', 'POST', { key: 'voldown' }) }, 'Leiser'),
@@ -1077,7 +1091,10 @@ L.events(async (ev) => {
   else if (ev.type === 'quick') { goHome(); window.quickMenu?.(); }
   else if (ev.type === 'incoming') window.incomingLink?.(ev);
   else if (ev.type === 'updating') L.toast('Update wird eingespielt – der Fernseher startet gleich neu …', 15000);
-  else if (ev.type === 'radio') {
+  else if (ev.type === 'audiodone') {
+    L.toast(ev.ok ? 'Ton-Einstellung aktiv ✓' : (ev.error || 'Ton: Fehler'), 5000);
+    if (S.view === 'settings' && S.section === 'audio') renderSection(true);
+  } else if (ev.type === 'radio') {
     S.state.radio = ev;
     document.querySelectorAll('.tile[data-kind="tile"]').forEach((el) => {
       const t = (S.state.tiles || []).find((x) => x.id === el.dataset.id);

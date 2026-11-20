@@ -647,6 +647,80 @@ class TestRadioAndImages(unittest.TestCase):
         prof["continue"] = []
 
 
+class TestKlang(unittest.TestCase):
+    """Klangregelung + Laptop und Fernseher gleichzeitig (PipeWire-Konfiguration)."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.old = (srv.klang.CONF_DIR, srv.klang.CONF_FILE, srv.klang.unmute_speakers)
+        srv.klang.CONF_DIR = self.dir
+        srv.klang.CONF_FILE = os.path.join(self.dir, "60-lichtung-klang.conf")
+        srv.klang.unmute_speakers = lambda: None
+        self.restarts, self.defaults = [], []
+
+    def tearDown(self):
+        srv.klang.CONF_DIR, srv.klang.CONF_FILE, srv.klang.unmute_speakers = self.old
+
+    def apply(self, settings, appears=True):
+        ids = {"lichtung_klang": 90, "lichtung_doppelt": 91, "alsa_output.x.HiFi__HDMI1__sink": 50}
+        return srv.klang.apply(settings, log=lambda *a: None, restart=lambda: self.restarts.append(1),
+                               waiter=lambda name: ids if appears and name in ids else None,
+                               setter=lambda nid: self.defaults.append(nid))
+
+    def test_conf_variants(self):
+        c = srv.klang.build_conf("warm", "beide")
+        self.assertIn("libpipewire-module-combine-stream", c)
+        self.assertIn('target.object = "lichtung_doppelt"', c)
+        self.assertIn('inputs = [ "pre:In 1" ]', c)              # genau ein Eingang pro Kanal
+        self.assertEqual(c.count("{"), c.count("}"))              # Klammern stimmen
+        self.assertEqual(c.count("["), c.count("]"))
+        c = srv.klang.build_conf("klar", "einzeln", "alsa_output.x.HiFi__HDMI1__sink")
+        self.assertNotIn("combine-stream", c)
+        self.assertIn('target.object = "alsa_output.x.HiFi__HDMI1__sink"', c)
+        self.assertEqual(srv.klang.build_conf("aus", "einzeln", "x"), "")
+        self.assertIn("combine-stream", srv.klang.build_conf("aus", "beide"))
+        self.assertNotIn('"; rm', srv.klang.build_conf("warm", "einzeln", 'x"; rm -rf /'))   # keine Einschleusung
+
+    def test_apply_and_default(self):
+        r = self.apply({"klang": "warm", "output": "beide"})
+        self.assertTrue(r["ok"])
+        self.assertTrue(os.path.exists(srv.klang.CONF_FILE))
+        self.assertEqual(self.defaults, [90])                    # Standard = Klang-Filter
+        self.assertEqual(len(self.restarts), 1)
+        self.apply({"klang": "warm", "output": "beide"})
+        self.assertEqual(len(self.restarts), 1)                  # nichts geändert → kein Neustart
+        self.apply({"klang": "aus", "output": "beide"})
+        self.assertEqual(self.defaults[-1], 91)                  # nur Kombi-Ausgang
+        self.apply({"klang": "aus", "output": "einzeln", "sink": "alsa_output.x.HiFi__HDMI1__sink"})
+        self.assertFalse(os.path.exists(srv.klang.CONF_FILE))    # Datei weg = Ton wie früher
+        self.assertEqual(self.defaults[-1], 50)
+
+    def test_rollback_when_sink_missing(self):
+        r = self.apply({"klang": "bass", "output": "beide"}, appears=False)
+        self.assertFalse(r["ok"])
+        self.assertFalse(os.path.exists(srv.klang.CONF_FILE))    # Sicherheitsnetz: zurückgerollt
+        self.assertEqual(len(self.restarts), 2)
+
+    def test_endpoints(self):
+        applied = []
+        old = srv.apply_klang_async
+        srv.apply_klang_async = lambda: applied.append(dict(srv.audio_settings()))
+        try:
+            st, a = call("GET", "/api/audio")
+            self.assertEqual(st, 200)
+            self.assertEqual(a["settings"]["klang"], "warm")          # Standard: an
+            self.assertEqual(a["settings"]["output"], "beide")
+            self.assertIn("klar", [p["id"] for p in a["presets"]])
+            r = call("POST", "/api/audio/klang", {"klang": "klar", "output": "einzeln"})[1]
+            self.assertEqual(r["settings"]["klang"], "klar")
+            self.assertEqual(applied[-1]["output"], "einzeln")
+            call("POST", "/api/audio/klang", {"klang": "quatsch"})
+            self.assertEqual(srv.audio_settings()["klang"], "klar")     # ungültig → unverändert
+        finally:
+            srv.apply_klang_async = old
+            srv.CONFIG["audio"] = {}
+
+
 if __name__ == "__main__":
     import urllib.parse  # noqa
     unittest.main(verbosity=2)

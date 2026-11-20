@@ -154,7 +154,7 @@ async function quickMenu() {
     if (!S.state.night) L.toast('Abendmodus braucht wlsunset (kommt mit dem Update)');
   } }, 'Abendmodus: ' + nightLabel[g.nightMode || 'aus']);
   const sinks = h('div', { class: 'menu-list' });
-  api('/api/audio').then((a) => a.sinks.forEach((sk) => sinks.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); L.toast('Ton über ' + sk.name); m.close(); } },
+  api('/api/audio').then((a) => a.sinks.filter((sk) => !sk.virtual).forEach((sk) => sinks.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); L.toast('Ton über ' + sk.name); m.close(); } },
     h('span', {}, sk.name), h('span', { class: 'k' }, sk.default ? 'aktiv ✓' : ''))))).catch(() => {});
   const m = openModal([
     h('h3', {}, 'Schnellmenü'),

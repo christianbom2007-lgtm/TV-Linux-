@@ -74,7 +74,7 @@ async function paintSetup() {
       const a = await api('/api/audio').catch(() => ({ sinks: [] }));
       list.innerHTML = '';
       if (!a.sinks.length) list.append(h('div', { class: 'lead' }, 'Keine Ausgänge gefunden – das passt meistens trotzdem.'));
-      a.sinks.forEach((sk) => list.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); beep(); paint(); } },
+      a.sinks.filter((sk) => !sk.virtual).forEach((sk) => list.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); beep(); paint(); } },
         h('span', {}, sk.name), h('span', { class: 'k' }, (sk.default ? 'aktiv ✓ ' : '') + (sk.hdmi ? 'HDMI' : '')))));
     };
     paint();

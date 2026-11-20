@@ -48,6 +48,7 @@ import extras  # noqa: E402  (Mediathek, Programmführer, Links)
 import android  # noqa: E402  (Android spiegeln mit scrcpy)
 import system  # noqa: E402  (sway, Brave, Programme, Bluetooth, KDE Connect, Updates …)
 import radio  # noqa: E402  (Internetradio über radio-browser.info + mpv)
+import klang  # noqa: E402  (Klangregelung + Laptop und Fernseher gleichzeitig)
 
 # --------------------------------------------------------------------------
 # Pfade und Grundeinstellungen
@@ -331,9 +332,32 @@ def audio_sinks():
         props = ((o.get("info") or {}).get("props") or {})
         if o.get("type") == "PipeWire:Interface:Node" and props.get("media.class") == "Audio/Sink":
             sinks.append({"id": o["id"], "name": props.get("node.description") or props.get("node.name"),
+                          "node": props.get("node.name") or "",
                           "hdmi": "hdmi" in (props.get("node.name") or "").lower(),
+                          "virtual": (props.get("node.name") or "").startswith("lichtung_"),
                           "default": props.get("node.name") == default_name})
     return {"sinks": sinks}
+
+
+def audio_settings():
+    return dict(klang.DEFAULTS, **CONFIG.setdefault("audio", {}))
+
+
+def apply_klang_async():
+    """Klang/Ausgabe im Hintergrund anwenden (PipeWire-Neustart dauert ein paar Sekunden)."""
+    def work():
+        res = klang.apply(audio_settings(), log=log)
+        broadcast("audiodone", **res)
+        log("Klang angewendet:", res)
+    threading.Thread(target=work, daemon=True).start()
+
+
+def klang_startup():
+    """Beim Start (und nach einem Update) die gewünschten Ton-Einstellungen sicherstellen."""
+    if not shutil.which("pw-dump"):
+        return
+    time.sleep(10)                           # PipeWire und WirePlumber erst hochfahren lassen
+    log("Klang beim Start:", klang.apply(audio_settings(), log=log))
 
 
 def go_home():
@@ -941,7 +965,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/volume":
             return self.send_json(get_volume())
         if path == "/api/audio":
-            return self.send_json(audio_sinks())
+            return self.send_json(dict(audio_sinks(), settings=audio_settings(),
+                                       presets=[{"id": k, "title": v["title"]} for k, v in klang.PRESETS.items()]))
         if path == "/api/mediathek":
             # Alle Reihen parallel laden (jede Reihe = eine Abfrage)
             rows = [r for r in CONFIG.get("mediathekRows", []) if r.get("on", True)]
@@ -1558,8 +1583,30 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "added": n})
 
         if path == "/api/audio":
-            run(["wpctl", "set-default", str(int(body.get("id", 0)))])
+            # Einen bestimmten Ausgang wählen: Ist Klang/Kombi aktiv, läuft der Ton
+            # weiter durch den Filter – nur sein Ziel ändert sich.
+            sid = int(body.get("id", 0))
+            sink = next((x for x in audio_sinks()["sinks"] if x["id"] == sid), None)
+            a = CONFIG.setdefault("audio", {})
+            if sink and not sink["virtual"]:
+                a["sink"], a["output"] = sink["node"], "einzeln"
+                save_config()
+                if audio_settings()["klang"] in klang.PRESETS:
+                    apply_klang_async()
+                    return self.send_json(dict(audio_sinks(), pending=True))
+                if os.path.exists(klang.CONF_FILE):      # Kombi-Ausgang wird nicht mehr gebraucht
+                    apply_klang_async()
+            run(["wpctl", "set-default", str(sid)])
             return self.send_json(audio_sinks())
+        if path == "/api/audio/klang":
+            a = CONFIG.setdefault("audio", {})
+            if body.get("klang") in list(klang.PRESETS) + ["aus"]:
+                a["klang"] = body["klang"]
+            if body.get("output") in ("beide", "einzeln"):
+                a["output"] = body["output"]
+            save_config()
+            apply_klang_async()
+            return self.send_json({"ok": True, "pending": True, "settings": audio_settings()})
 
         if path == "/api/sleep":
             if body.get("cancel"):
@@ -1841,6 +1888,7 @@ def main():
     threading.Thread(target=sleep_watcher, daemon=True).start()
     threading.Thread(target=update_watcher, daemon=True).start()
     threading.Thread(target=RADIO.watch, daemon=True).start()
+    threading.Thread(target=klang_startup, daemon=True).start()
     threading.Thread(target=media_cache_worker, daemon=True).start()
     EPG.start()
     SWAY.start_watch(lambda: broadcast("home", url=LAUNCHER_URL), lambda: CONFIG["general"].get("outputMode", "last"))

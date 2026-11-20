@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Werkzeuge installieren
-        run: sudo apt-get update && sudo apt-get install -y xorriso
+        run: sudo apt-get update && sudo apt-get install -y xorriso python3-pil
 
       - name: Release-Namen festlegen
         run: |

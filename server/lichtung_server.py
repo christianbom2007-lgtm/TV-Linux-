@@ -47,6 +47,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import extras  # noqa: E402  (Mediathek, Programmführer, Links)
 import android  # noqa: E402  (Android spiegeln mit scrcpy)
 import system  # noqa: E402  (sway, Brave, Programme, Bluetooth, KDE Connect, Updates …)
+import radio  # noqa: E402  (Internetradio über radio-browser.info + mpv)
 
 # --------------------------------------------------------------------------
 # Pfade und Grundeinstellungen
@@ -80,6 +81,10 @@ def log(*args):
 # --------------------------------------------------------------------------
 
 CFG_LOCK = threading.RLock()  # verhindert, dass zwei Anfragen gleichzeitig schreiben
+
+
+RADIO_TILE = {"id": "t-radio", "title": "Radio", "subtitle": "Internetradio · italienische Musik & mehr",
+              "url": "lichtung:radio", "image": "", "logo": "", "color": "", "size": "normal", "open": "lichtung", "hue": 35}
 
 
 def load_config():
@@ -126,6 +131,13 @@ def load_config():
                 p["tiles"].append({"id": "t-apps", "title": "Programme", "subtitle": "Terminal, App-Store, Spiele", "url": "lichtung:apps",
                                    "image": "", "logo": "", "color": "", "size": "normal", "open": "lichtung", "hue": 150})
         cfg["general"]["version"] = 2
+    # Version 3: Internetradio – Kachel einmalig ergänzen
+    if int(cfg["general"].get("version", 2) or 2) < 3 and not fresh_install:
+        for p in cfg.get("profiles", []):
+            if "lichtung:radio" not in {t.get("url") for t in p.get("tiles", [])}:
+                p.setdefault("tiles", []).insert(min(4, len(p.get("tiles", []))), dict(RADIO_TILE))
+        cfg["general"]["version"] = 3
+    cfg.setdefault("radio", {"favorites": [], "last": None})
     cfg["general"].pop("tvUserAgent", None)
     # Fernbedienungs-Code einmalig zufällig erzeugen
     if not cfg["remote"].get("pin"):
@@ -594,6 +606,8 @@ def sleep_tick(pause=time.sleep):
     if left <= 0:
         STATE["sleep"] = None
         broadcast("sleep", action=sl["action"])        # Seiten pausieren Videos
+        if RADIO.playing:
+            RADIO.stop()                                 # Radio läuft im Hintergrund → auch stoppen
         if sl["action"] in ("screen", "poweroff"):
             pause(3)
             screen(False)
@@ -631,11 +645,13 @@ def on_call(event):
     """Handy klingelt (KDE Connect) → alles pausieren."""
     log("Anruf am Handy – pausiere")
     system.pause_all_media()
+    RADIO.stop() if RADIO.playing else None   # bei Anruf auch das Radio stoppen
     broadcast("pause", reason="call")
 
 
 KDEC = system.KDEConnect(on_call, log)
 MUSIC = system.MusicBox(log)
+RADIO = radio.Radio(lambda t, **d: broadcast(t, **d), log)
 STATS = system.Stats()
 REC_DIR = os.path.join(DATA_DIR, "aufnahmen")
 REC = system.Recorder(REC_DIR, lambda: CONFIG, lambda: save_config(), extras.mediathek_row, lambda t, **d: broadcast(t, **d), log)
@@ -706,6 +722,8 @@ def idle_watcher():
                 STATE["autoOffDone"] = True
                 log("Auto-Aus nach %.1f Std. ohne Eingabe" % hours)
                 broadcast("sleep", action=g.get("autoOffAction", "screen"))
+                if RADIO.playing:
+                    RADIO.stop()
                 time.sleep(3)
                 if g.get("autoOffAction") == "poweroff":
                     subprocess.Popen(["systemctl", "poweroff"])
@@ -1000,6 +1018,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"menu": menu.strip() == "on", "theme": cur.strip(), "job": job.strip(), "themes": themes, "admin": rc == 0})
         if path == "/api/music":
             return self.send_json(MUSIC.status())
+        if path == "/api/radio":
+            r = CONFIG.get("radio", {})
+            return self.send_json(dict(RADIO.status(), favorites=r.get("favorites", []), last=r.get("last"),
+                                       categories=[{"id": k, "title": v["title"]} for k, v in radio.CATEGORIES.items()]))
+        if path == "/api/radio/search":
+            cat, q = qs.get("cat", [""])[0], qs.get("q", [""])[0]
+            try:
+                if cat == "favoriten":
+                    items = CONFIG.get("radio", {}).get("favorites", [])
+                else:
+                    items = RADIO.search(cat, q)
+            except Exception as e:
+                return self.send_json({"items": [], "error": str(e)}, 502)
+            RADIO.list = items
+            return self.send_json({"items": items})
         if path == "/api/services":
             rc, rs = system.admin("runner-status", timeout=8)
             st, job, url = (rs.strip().split("|") + ["", "", ""])[:3] if rc == 0 else ("fehlt", "", "")
@@ -1067,6 +1100,7 @@ class Handler(BaseHTTPRequestHandler):
             "bluetooth": BT.available,
             "night": NIGHT.available,
             "version": UPDATER.installed().get("version", "?"),
+            "radio": RADIO.status(),
         }
 
     def sse(self):
@@ -1185,11 +1219,14 @@ class Handler(BaseHTTPRequestHandler):
                 clean = clean_tile(body.get("tile", {}))
                 existing = next((x for x in prof["tiles"] if x["id"] == clean["id"]), None)
                 if existing:
+                    if existing.get("url") != clean.get("url"):
+                        existing.pop("logoTried", None)     # neue Adresse → Logo neu suchen
                     existing.update(clean)
                 else:
                     prof["tiles"].append(clean)
                 save_config()
                 broadcast("config")
+                MEDIA_EVENT.set()                            # fehlendes Logo im Hintergrund holen
                 return self.send_json(clean)
 
             m = re.match(r"^/api/tiles/([\w-]+)$", path)
@@ -1405,6 +1442,37 @@ class Handler(BaseHTTPRequestHandler):
             rc, out = system.admin("miracast", "start" if body.get("on") else "stop", timeout=20)
             return self.send_json({"ok": rc == 0, "msg": out.strip()[-200:]})
 
+        if path == "/api/radio/play":
+            st = body.get("station") or CONFIG.get("radio", {}).get("last")
+            res = RADIO.play(st)
+            if res.get("ok"):
+                CONFIG.setdefault("radio", {})["last"] = st
+                save_config()
+            return self.send_json(res, 200 if res.get("ok") else 400)
+        if path == "/api/radio/show":
+            # Radio-Bildschirm am Fernseher zeigen (von der Handy-Fernbedienung)
+            if SWAY.available:
+                SWAY.workspace(1)
+            wake()
+            broadcast("open", url="/radio.html", label="Radio")
+            return self.send_json({"ok": True})
+        if path == "/api/radio/stop":
+            return self.send_json(RADIO.stop())
+        if path == "/api/radio/step":
+            return self.send_json(RADIO.step(1 if body.get("dir", 1) >= 0 else -1))
+        if path == "/api/radio/toggle":
+            if RADIO.playing:
+                return self.send_json(RADIO.stop())
+            return self.send_json(RADIO.play(CONFIG.get("radio", {}).get("last")))
+        if path == "/api/radio/fav":
+            st, r = body.get("station") or {}, CONFIG.setdefault("radio", {"favorites": []})
+            favs = [f for f in r.setdefault("favorites", []) if f.get("id") != st.get("id")]
+            if body.get("on") and st.get("url"):
+                favs.insert(0, {k: st.get(k) for k in ("id", "name", "url", "logo", "tags", "country", "codec", "bitrate")})
+            r["favorites"] = favs[:40]
+            save_config()
+            return self.send_json({"ok": True, "favorites": r["favorites"]})
+
         if path == "/api/music":
             a = body.get("action", "")
             if a == "on":
@@ -1591,6 +1659,7 @@ def update_continue(prof, body):
     key = norm_key(url)
     t, d = float(body.get("time") or 0), float(body.get("duration") or 0)
     items = prof.setdefault("continue", [])
+    old = next((c for c in items if c["key"] == key), None)
     items[:] = [c for c in items if c["key"] != key]
     # Fast fertig (>95 %) oder sehr kurz → nicht merken
     if d > 0 and (t / d > 0.95 or d < 120):
@@ -1600,17 +1669,144 @@ def update_continue(prof, body):
     if t < 30:
         return {"ok": True}
     vid = key[3:] if key.startswith("yt:") else None
+    # Vorschaubild: bei YouTube immer das offizielle Vorschaubild (die Seite meldet
+    # nach einem Videowechsel oft noch das alte). Ein schon lokal gespeichertes
+    # Bild wird behalten, damit es nicht bei jeder Fortschrittsmeldung neu lädt.
+    src = ("https://i.ytimg.com/vi/%s/hqdefault.jpg" % vid) if vid else (body.get("image") or "")
+    if src.startswith(("blob:", "data:")):
+        src = ""
+    image, image_src = src, src
+    if old and old.get("image", "").startswith("/data/") and old.get("imageSrc", "") in (src, "") :
+        image, image_src = old["image"], old.get("imageSrc", "")
     items.insert(0, {
         "key": key, "url": url, "title": (body.get("title") or url)[:120],
         "site": (body.get("site") or urllib.parse.urlparse(url).hostname or "")[:40],
-        "image": body.get("image") or ("https://i.ytimg.com/vi/%s/hqdefault.jpg" % vid if vid else ""),
+        "image": image, "imageSrc": image_src,
         "time": t, "duration": d, "updated": time.time(), "yt": vid,
         "player": body.get("player") or None,   # direkte Videoadresse → im eigenen Player öffnen
     })
     del items[20:]   # maximal 20 Einträge
     save_config()
     broadcast("continue")
+    MEDIA_EVENT.set()            # Vorschaubild im Hintergrund lokal speichern
     return {"ok": True}
+
+
+# --------------------------------------------------------------------------
+# Bilder lokal speichern: Vorschaubilder fürs Weiterschauen und Kachel-Logos.
+# Fremde Bilder brechen sonst gern weg (Adresse läuft ab, Seite sperrt das
+# Einbinden). Lokal gespeichert laden sie immer und sofort.
+# --------------------------------------------------------------------------
+MEDIA_EVENT = threading.Event()
+
+
+def cache_image(src, prefix="thumb", max_px=640):
+    """Lädt ein Bild herunter und speichert es unter /data/images/. Gleiche
+    Adresse → gleicher Dateiname (wird nicht doppelt geladen)."""
+    if not src.startswith(("http://", "https://")):
+        return ""
+    name = "%s-%s" % (prefix, hashlib.sha1(src.encode()).hexdigest()[:16])
+    for ext in (".jpg", ".png"):
+        if os.path.exists(os.path.join(IMG_DIR, name + ext)):
+            return "/data/images/" + name + ext
+    try:
+        req = urllib.request.Request(src, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) LichtungTV",
+                                                   "Accept": "image/*"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = r.read(6 * 1024 * 1024)
+    except Exception:
+        return ""
+    os.makedirs(IMG_DIR, exist_ok=True)
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(data))
+        img.thumbnail((max_px, max_px))
+        if prefix == "logo":          # Logos: Transparenz behalten
+            img.convert("RGBA").save(os.path.join(IMG_DIR, name + ".png"), "PNG")
+            return "/data/images/" + name + ".png"
+        img.convert("RGB").save(os.path.join(IMG_DIR, name + ".jpg"), "JPEG", quality=85)
+        return "/data/images/" + name + ".jpg"
+    except Exception:
+        if data[:4] == b"\x89PNG":
+            ext = ".png"
+        elif data[:3] == b"\xff\xd8\xff":
+            ext = ".jpg"
+        else:
+            return ""                 # kein Bild (z. B. Fehlerseite)
+        with open(os.path.join(IMG_DIR, name + ext), "wb") as f:
+            f.write(data)
+        return "/data/images/" + name + ext
+
+
+def site_logo(url):
+    """Bestes Symbol einer Website: großes Logo aus der Seite, sonst
+    apple-touch-icon, sonst Favicon in 128 px (über Google)."""
+    host = urllib.parse.urlparse(url).hostname or ""
+    if not host:
+        return ""
+    candidates = []
+    try:
+        info = system.siteinfo(url)
+        if info.get("logo"):
+            candidates.append(info["logo"])
+    except Exception:
+        pass
+    candidates += ["https://%s/apple-touch-icon.png" % host,
+                   "https://www.google.com/s2/favicons?domain=%s&sz=128" % host]
+    for c in candidates:
+        local = cache_image(c, prefix="logo", max_px=256)
+        if local:
+            return local
+    return ""
+
+
+def media_cache_pass():
+    """Ein Durchgang: fehlende Vorschaubilder und Kachel-Logos holen.
+    Gibt True zurück, wenn sich etwas geändert hat."""
+    changed = False
+    for prof in CONFIG.get("profiles", []):
+        for c in list(prof.get("continue", [])):
+            if (c.get("image") or "").startswith("/data/"):
+                continue
+            if time.time() - c.get("imageTried", 0) < 3600:
+                continue
+            src = c.get("image") or c.get("imageSrc") or ""
+            if not src and c.get("yt"):
+                src = "https://i.ytimg.com/vi/%s/hqdefault.jpg" % c["yt"]
+            if not src and c.get("url", "").startswith("http"):
+                try:
+                    src = system.siteinfo(c["url"]).get("image") or ""
+                except Exception:
+                    src = ""
+            local = cache_image(src) if src else ""
+            if local:
+                c["image"], c["imageSrc"] = local, src
+                c.pop("imageTried", None)
+            else:
+                c["imageTried"] = time.time()
+            changed = True
+        for t in prof.get("tiles", []):
+            url = t.get("url", "")
+            if t.get("image") or t.get("logo") or t.get("logoTried") or not url.startswith(("http://", "https://")):
+                continue
+            t["logo"] = site_logo(url)
+            t["logoTried"] = True
+            changed = True
+    return changed
+
+
+def media_cache_worker():
+    time.sleep(20)                   # erst den Start in Ruhe lassen
+    while True:
+        try:
+            if media_cache_pass():
+                save_config()
+                broadcast("config")
+        except Exception as e:
+            log("Bilder speichern:", e)
+        MEDIA_EVENT.wait(600)        # spätestens alle 10 Minuten, sonst sobald etwas Neues da ist
+        MEDIA_EVENT.clear()
 
 
 def save_upload(body):
@@ -1644,6 +1840,8 @@ def main():
     threading.Thread(target=idle_watcher, daemon=True).start()
     threading.Thread(target=sleep_watcher, daemon=True).start()
     threading.Thread(target=update_watcher, daemon=True).start()
+    threading.Thread(target=RADIO.watch, daemon=True).start()
+    threading.Thread(target=media_cache_worker, daemon=True).start()
     EPG.start()
     SWAY.start_watch(lambda: broadcast("home", url=LAUNCHER_URL), lambda: CONFIG["general"].get("outputMode", "last"))
     KDEC.start_call_monitor()

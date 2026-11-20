@@ -128,6 +128,10 @@
       <button class="btn" id="q-quick">Schnellmenü</button>
       <button class="btn" id="q-on">TV an</button>
     </div>
+    <div class="label">Radio</div>
+    <p class="hint" id="radio-now">Radio ist aus</p>
+    <div class="row"><button class="btn" id="radio-prev">◀ Sender</button><button class="btn p" id="radio-toggle">An / Aus</button><button class="btn" id="radio-next">Sender ▶</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="radio-open">Radio am Fernseher öffnen</button></div>
     <div class="label">Musikbox</div>
     <div class="row">
       <button class="btn" data-music="previous">⏮</button><button class="btn p" data-music="play-pause">⏯</button><button class="btn" data-music="next">⏭</button>
@@ -292,6 +296,18 @@
   }
   $('#open-link').onclick = () => openLink($('#link').value);
   $('#tile-link').onclick = async () => { const u = $('#link').value.trim(); if (!u) { toast('Erst einen Link einfügen'); return; } await api('/api/open', 'POST', { url: u, asTile: true }).catch((e) => toast(e.message)); toast('Am Fernseher: Kachel prüfen und speichern'); $('#link').value = ''; };
+
+  /* ---- Radio (spielt im Hintergrund auf dem Fernseher) ---- */
+  function paintRadio(r) {
+    if (!r) return;
+    $('#radio-now').textContent = r.playing && r.station ? `▶ ${r.station.name}${r.title ? ' · ' + r.title : ''}` : 'Radio ist aus';
+  }
+  const radioCall = (path, body = {}) => { buzz(); api(path, 'POST', body).then(() => setTimeout(async () => paintRadio(await api('/api/radio').catch(() => null)), 800)).catch((e) => toast(e.message)); };
+  $('#radio-toggle').onclick = () => radioCall('/api/radio/toggle');
+  $('#radio-next').onclick = () => radioCall('/api/radio/step', { dir: 1 });
+  $('#radio-prev').onclick = () => radioCall('/api/radio/step', { dir: -1 });
+  $('#radio-open').onclick = () => { buzz(); api('/api/radio/show', 'POST', {}).catch(() => {}); toast('Radio öffnet am Fernseher'); };
+  setInterval(async () => { if (!document.hidden && document.querySelector('#t-ctrl.on')) paintRadio(await api('/api/radio').catch(() => null)); }, 6000);
 
   /* ---- Schnellknöpfe & Musikbox ---- */
   $('#q-brave').onclick = () => { buzz(); api('/api/browser/open', 'POST', { url: '', mode: 'tab' }).catch((e) => toast(e.message)); };

@@ -481,6 +481,172 @@ class TestUpdate(unittest.TestCase):
         call("POST", "/api/general", {"autoUpdate": True})
 
 
+class TestRadioAndImages(unittest.TestCase):
+    """Internetradio (Verzeichnis, Favoriten, mpv) und lokal gespeicherte Bilder."""
+
+    RAW = [
+        {"stationuuid": "11111111-1111-1111-1111-111111111111", "name": "RTL 102.5", "url_resolved": "https://example.org/rtl.mp3",
+         "favicon": "https://example.org/rtl.png", "tags": "pop,italian music", "countrycode": "IT", "codec": "MP3", "bitrate": 128},
+        {"stationuuid": "22222222-2222-2222-2222-222222222222", "name": "RTL 102.5 ", "url_resolved": "https://example.org/rtl2.aac",
+         "favicon": "", "tags": "", "countrycode": "IT", "codec": "AAC", "bitrate": 64},
+        {"stationuuid": "33333333-3333-3333-3333-333333333333", "name": "Radio Italia", "url_resolved": "http://example.org/ri",
+         "favicon": "", "tags": "italian", "countrycode": "IT", "codec": "MP3", "bitrate": 128},
+        {"stationuuid": "44444444-4444-4444-4444-444444444444", "name": "Kaputt", "url_resolved": "ftp://nope", "tags": ""},
+    ]
+
+    def setUp(self):
+        self.ev = Events()
+        self.calls = []
+        srv.RADIO.cache.clear()
+        srv.RADIO.fetch = lambda path, params: (self.calls.append((path, params)), self.RAW if "search" in path else {})[1]
+
+    def test_search_clean_and_dedupe(self):
+        items = srv.RADIO.search("italien")
+        self.assertEqual([i["name"] for i in items], ["RTL 102.5", "Radio Italia"])   # doppelt + kaputt raus
+        self.assertEqual(self.calls[0][1]["countrycode"], "IT")
+        srv.RADIO.search("italien")
+        self.assertEqual(len(self.calls), 1)                                          # zweites Mal aus dem Zwischenspeicher
+
+    def test_endpoints_and_favorites(self):
+        st, r = call("GET", "/api/radio")
+        self.assertEqual(st, 200)
+        self.assertIn("italien", [c["id"] for c in r["categories"]])
+        st, r = call("GET", "/api/radio/search?cat=italo")
+        self.assertEqual(len(r["items"]), 2)
+        station = r["items"][1]
+        r = call("POST", "/api/radio/fav", {"station": station, "on": True})[1]
+        self.assertEqual(r["favorites"][0]["name"], "Radio Italia")
+        self.assertEqual(call("GET", "/api/radio/search?cat=favoriten")[1]["items"][0]["id"], station["id"])
+        call("POST", "/api/radio/fav", {"station": station, "on": False})
+        self.assertEqual(call("GET", "/api/radio/search?cat=favoriten")[1]["items"], [])
+
+    def test_directory_offline(self):
+        def boom(path, params):
+            raise RuntimeError("Senderverzeichnis nicht erreichbar")
+        srv.RADIO.fetch = boom
+        st, r = call("GET", "/api/radio/search?q=zzz-offline")
+        self.assertEqual(st, 502)
+        self.assertIn("nicht erreichbar", r["error"])
+
+    def test_play_with_fake_mpv_and_title(self):
+        import socket as so
+        tmp = tempfile.mkdtemp()
+        fake = os.path.join(tmp, "mpv")
+        with open(fake, "w") as f:   # Ersatz für mpv: läuft einfach weiter
+            f.write("#!/bin/sh\nexec sleep 30\n")
+        os.chmod(fake, 0o755)
+        old_path = os.environ["PATH"]
+        os.environ["PATH"] = tmp + os.pathsep + old_path
+        r = srv.radio.Radio(lambda t, **d: self.ev.items.append((t, d)), runtime_dir=tmp)
+        r.fetch = lambda *a: {}
+        try:
+            self.assertTrue(r.play({"id": "x", "name": "Test FM", "url": "https://example.org/s"})["ok"])
+            self.assertTrue(r.playing)
+            self.assertEqual(r.status()["station"]["name"], "Test FM")
+            # mpv-IPC nachstellen: antwortet mit ICY-Titel
+            srv_sock = so.socket(so.AF_UNIX, so.SOCK_STREAM)
+            srv_sock.bind(r.sock_path)
+            srv_sock.listen(1)
+            def answer():
+                c, _ = srv_sock.accept()
+                c.recv(1024)
+                c.sendall(b'{"data": {"icy-title": "Eros Ramazzotti - Cose della vita"}, "error": "success"}\n')
+                c.close()
+            threading.Thread(target=answer, daemon=True).start()
+            self.assertEqual(r.current_title(), "Eros Ramazzotti - Cose della vita")
+            srv_sock.close()
+            r.list = [{"id": "x", "name": "Test FM", "url": "https://example.org/s"}, {"id": "y", "name": "Zwei", "url": "https://example.org/2"}]
+            r.step(1)
+            self.assertEqual(r.station["name"], "Zwei")
+            r.stop()
+            self.assertFalse(r.playing)
+            self.assertIn("radio", [t for t, _ in self.ev.items])
+        finally:
+            os.environ["PATH"] = old_path
+            r.stop()
+
+    def test_play_rejects_bad_url(self):
+        self.assertFalse(srv.RADIO.play({"name": "x", "url": "file:///etc/passwd"})["ok"])
+
+    def test_radio_tile_migration(self):
+        cfg_path = srv.CONFIG_PATH
+        with open(cfg_path) as f:
+            saved = f.read()
+        cfg = json.loads(saved)
+        cfg["general"]["version"] = 2
+        for p in cfg["profiles"]:
+            p["tiles"] = [t for t in p["tiles"] if t.get("url") != "lichtung:radio"]
+        with open(cfg_path, "w") as f:
+            json.dump(cfg, f)
+        try:
+            new = srv.load_config()
+            self.assertTrue(all(any(t["url"] == "lichtung:radio" for t in p["tiles"]) for p in new["profiles"]))
+            self.assertEqual(new["general"]["version"], 3)
+            again = srv.load_config()                     # zweites Laden: keine doppelte Kachel
+            self.assertEqual(sum(t["url"] == "lichtung:radio" for t in again["profiles"][0]["tiles"]), 1)
+        finally:
+            with open(cfg_path, "w") as f:
+                f.write(saved)
+
+    def test_image_cache(self):
+        import http.server
+        from PIL import Image
+        import io
+        d = tempfile.mkdtemp()
+        buf = io.BytesIO()
+        Image.new("RGB", (800, 450), (200, 120, 40)).save(buf, "JPEG")
+        with open(os.path.join(d, "bild.jpg"), "wb") as f:
+            f.write(buf.getvalue())
+        with open(os.path.join(d, "kein-bild.html"), "w") as f:
+            f.write("<html>404</html>")
+        handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=d, **k)
+        http.server.SimpleHTTPRequestHandler.log_message = lambda *a: None
+        hs = srv.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=hs.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d/" % hs.server_address[1]
+        try:
+            local = srv.cache_image(base + "bild.jpg")
+            self.assertTrue(local.startswith("/data/images/thumb-") and local.endswith(".jpg"))
+            self.assertEqual(srv.cache_image(base + "bild.jpg"), local)              # gleiche Adresse → gleiche Datei
+            with Image.open(os.path.join(srv.IMG_DIR, os.path.basename(local))) as im:
+                self.assertLessEqual(im.size[0], 640)                                   # verkleinert
+            self.assertEqual(srv.cache_image(base + "kein-bild.html"), "")             # Fehlerseite ist kein Bild
+            # Weiterschauen-Eintrag + Kachel ohne Logo → beides wird lokal
+            prof = srv.active_profile()
+            prof.setdefault("continue", []).insert(0, {"key": "u:test", "url": "https://example.org/v", "title": "T", "site": "example.org",
+                                                       "image": base + "bild.jpg", "time": 100, "duration": 1000})
+            prof["tiles"].append({"id": "t-logo-test", "title": "X", "url": "https://example.org/", "image": "", "logo": ""})
+            old_logo = srv.site_logo
+            srv.site_logo = lambda url: srv.cache_image(base + "bild.jpg", prefix="logo", max_px=256)
+            try:
+                self.assertTrue(srv.media_cache_pass())
+            finally:
+                srv.site_logo = old_logo
+            self.assertTrue(prof["continue"][0]["image"].startswith("/data/images/"))
+            tile = next(t for t in prof["tiles"] if t["id"] == "t-logo-test")
+            self.assertTrue(tile["logo"].startswith("/data/images/logo-"))
+            self.assertTrue(tile["logoTried"])
+            self.assertEqual(urllib.request.urlopen(BASE + local, timeout=5).status, 200)  # wird ausgeliefert
+        finally:
+            hs.shutdown()
+            prof["continue"] = [c for c in prof.get("continue", []) if c["key"] != "u:test"]
+            prof["tiles"] = [t for t in prof["tiles"] if t["id"] != "t-logo-test"]
+
+    def test_continue_keeps_local_thumb(self):
+        prof = srv.active_profile()
+        body = {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "title": "Video", "time": 60, "duration": 600,
+                "image": "https://i.ytimg.com/vi/ALTESVIDEO/hqdefault.jpg"}
+        srv.update_continue(prof, body)
+        c = prof["continue"][0]
+        self.assertEqual(c["image"], "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")   # immer das richtige YouTube-Bild
+        c["image"] = "/data/images/thumb-abc.jpg"                                          # inzwischen lokal gespeichert
+        srv.update_continue(prof, dict(body, time=90))
+        self.assertEqual(prof["continue"][0]["image"], "/data/images/thumb-abc.jpg")       # bleibt lokal
+        srv.update_continue(prof, dict(body, url="https://www.ardmediathek.de/video/x", image="blob:https://x/123"))
+        self.assertEqual(prof["continue"][0]["image"], "")                                  # blob: ist kein Bild
+        prof["continue"] = []
+
+
 if __name__ == "__main__":
     import urllib.parse  # noqa
     unittest.main(verbosity=2)

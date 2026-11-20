@@ -9,7 +9,11 @@ TV=tv
 UID_TV=$(id -u $TV 2>/dev/null)
 RUN=/run/user/$UID_TV
 SOCK=$(ls -t $RUN/sway-ipc.*.sock 2>/dev/null | head -1)
-sw() { [ -n "$SOCK" ] && sudo -u $TV SWAYSOCK="$SOCK" swaymsg "$@" 2>&1; }
+sw() {   # funktioniert als root und als Benutzer tv
+  [ -n "$SOCK" ] || return
+  if [ "$(id -u)" = "$UID_TV" ]; then SWAYSOCK="$SOCK" swaymsg "$@" 2>&1; else sudo -u $TV SWAYSOCK="$SOCK" swaymsg "$@" 2>&1; fi
+}
+asuser() { if [ "$(id -u)" = "$UID_TV" ]; then "$@"; else sudo -u $TV XDG_RUNTIME_DIR=$RUN "$@"; fi; }
 ok()  { printf '\033[32mOK\033[0m   %s\n' "$*"; }
 no()  { printf '\033[31mFEHLT\033[0m %s\n' "$*"; }
 inf() { printf '     %s\n' "$*"; }
@@ -62,4 +66,11 @@ done
 systemctl is-active --quiet bluetooth && ok "Bluetooth-Dienst läuft" || no "Bluetooth-Dienst läuft nicht"
 command -v bluetoothctl >/dev/null && inf "$(bluetoothctl show 2>/dev/null | grep -E 'Name|Powered|Discoverable:' | tr -s ' \t' ' ' | tr '\n' '|' | cut -c1-110)"
 dmesg 2>/dev/null | grep -iE 'bluetooth.*(fail|error|firmware)' | tail -2 | cut -c1-110 | sed 's/^/     /'
+# --- Ton
+echo "-- Ton:"
+dpkg -s firmware-sof-signed >/dev/null 2>&1 && ok "Laptop-Ton-Firmware (SOF) installiert" || no "firmware-sof-signed fehlt (Laptop-Lautsprecher!)"
+inf "Soundkarten: $(aplay -l 2>/dev/null | grep -E '^(card|Karte)' | sed -E 's/^(card|Karte) ([0-9]+): ([^ ]+).*\[(.*)\], (device|Gerät) ([0-9]+).*/\2:\4/' | sort -u | tr '\n' ' ' | cut -c1-110)"
+asuser pactl list cards 2>/dev/null | grep -E 'Active Profile|Aktives Profil' | sed 's/^\s*/     Profil: /' | cut -c1-110
+asuser pactl list short sinks 2>/dev/null | awk '{print "     Ausgang: "$2}' | cut -c1-110
+dmesg 2>/dev/null | grep -iE 'sof|snd_hda|sound' | grep -iE 'error|fail|firmware' | tail -3 | cut -c1-110 | sed 's/^/     /'
 echo "== Ende – bitte abfotografieren =="

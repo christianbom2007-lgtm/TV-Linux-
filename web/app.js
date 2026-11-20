@@ -227,17 +227,24 @@ function tileEl(t, i) {
     tileArt(t), h('div', { class: 'shade' }),
     h('div', { class: 'num' }, L.pad(i + 1)),
     OPEN_BADGE[t.open] ? h('div', { class: 'tv' }, OPEN_BADGE[t.open]) : null,
-    h('div', { class: 'name' }, h('b', {}, t.title), h('span', {}, t.subtitle || hostOf(t.url))));
+    h('div', { class: 'name' }, h('b', {}, t.title), h('span', {}, radioLine(t) || t.subtitle || hostOf(t.url))));
   el.addEventListener('click', () => openTile(t));
   el.addEventListener('contextmenu', (e) => { e.preventDefault(); tileMenu(t); });
   el.addEventListener('navfocus', () => setHero(L.pad(i + 1) + ' · ' + hostOf(t.url), t.title, t.description || t.subtitle || ''));
   return el;
 }
 
+// Radio-Kachel zeigt, was gerade läuft
+function radioLine(t) {
+  const r = S.state?.radio;
+  return t.url === 'lichtung:radio' && r && r.playing && r.station ? '▶ ' + r.station.name + (r.title ? ' · ' + r.title : '') : '';
+}
+
 function hostOf(url) {
   if (url === 'lichtung:live') return 'Live-Fernsehen';
   if (url === 'lichtung:mirror') return 'Spiegeln';
   if (url === 'lichtung:browser') return 'Brave';
+  if (url === 'lichtung:radio') return 'Internetradio';
   if (url === 'lichtung:apps') return 'Programme';
   if (url === 'lichtung:music') return 'Musikbox';
   if (url === 'lichtung:doku') return 'Mediathek';
@@ -346,6 +353,7 @@ function openTile(t) {
   if (t.url === 'lichtung:apps') return appsPicker();
   if (t.url === 'lichtung:music') return window.musicBox?.();
   if (t.url === 'lichtung:doku') return window.randomDoc?.();
+  if (t.url === 'lichtung:radio') { launching(t.title); setTimeout(() => { location.href = '/radio.html'; }, 250); return; }
   if (t.url === 'lichtung:ambient') { launching(t.title); setTimeout(() => { location.href = '/ambient.html'; }, 250); return; }
   if (t.url === 'lichtung:browser') return openWeb('', 'tab', t.title);
   if (t.url.startsWith('app:')) return launchApp(t.url.slice(4), t.title);
@@ -1069,7 +1077,13 @@ L.events(async (ev) => {
   else if (ev.type === 'quick') { goHome(); window.quickMenu?.(); }
   else if (ev.type === 'incoming') window.incomingLink?.(ev);
   else if (ev.type === 'updating') L.toast('Update wird eingespielt – der Fernseher startet gleich neu …', 15000);
-  else if (ev.type === 'update') L.toast('Update verfügbar (' + ev.latest + ') – Einstellungen → System & Updates', 8000);
+  else if (ev.type === 'radio') {
+    S.state.radio = ev;
+    document.querySelectorAll('.tile[data-kind="tile"]').forEach((el) => {
+      const t = (S.state.tiles || []).find((x) => x.id === el.dataset.id);
+      if (t && t.url === 'lichtung:radio') el.querySelector('.name span').textContent = radioLine(t) || t.subtitle || hostOf(t.url);
+    });
+  } else if (ev.type === 'update') L.toast('Update verfügbar (' + ev.latest + ') – Einstellungen → System & Updates', 8000);
   else if (ev.type === 'saver') { if (ev.on && S.view !== 'profiles') startSaver(); else if (!ev.on) stopSaver(); }
   else if (ev.type === 'config' || ev.type === 'continue' || ev.type === 'profile') {
     // Änderungen vom Handy sofort übernehmen (aber nicht mitten in einem Dialog)

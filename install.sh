@@ -71,6 +71,8 @@ echo "Brave:"
 apt-get install -y brave-browser || warn "Brave konnte nicht installiert werden – später erneut: bash install.sh"
 echo "Bluetooth, Musikbox, KDE Connect:"
 try_install bluez bluez-tools libspa-0.2-bluetooth kdeconnect
+# Internetradio: mpv spielt die Sender im Hintergrund ab
+try_install mpv
 echo "Programme & App-Store:"
 try_install flatpak gnome-software gnome-software-plugin-flatpak
 echo "Terminal-Werkzeuge:"
@@ -105,6 +107,9 @@ if [ ! -x /opt/scrcpy/scrcpy ]; then
   fi
 fi
 apt-get install -y firmware-iwlwifi firmware-realtek firmware-atheros 2>/dev/null || true
+# Ton der Laptop-Lautsprecher: neuere Intel-Laptops (ab ca. 10. Generation) brauchen die
+# "Sound Open Firmware" und die passenden Geräteprofile – sonst geht oft nur HDMI.
+try_install firmware-sof-signed alsa-ucm-conf firmware-intel-sound
 
 # --------------------------------------------------------------------------
 step "3/$STEPS  Benutzer '$TV_USER' anlegen"

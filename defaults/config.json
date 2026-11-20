@@ -19,7 +19,7 @@
     "setupDone": false,
     "mediathekOn": true,
     "theme": "lichtung",
-    "version": 2,
+    "version": 3,
     "braveScale": 1.25,
     "braveProfiles": true,
     "ytZoom": 1.25,
@@ -248,6 +248,18 @@
           "hue": 300
         },
         {
+          "id": "t-radio",
+          "title": "Radio",
+          "subtitle": "Internetradio · italienische Musik & mehr",
+          "url": "lichtung:radio",
+          "image": "",
+          "logo": "",
+          "color": "",
+          "size": "normal",
+          "open": "lichtung",
+          "hue": 35
+        },
+        {
           "id": "t-ambient",
           "title": "Ambiente",
           "subtitle": "Kaminfeuer, Regen, Aquarium, Nordlicht",
@@ -412,5 +424,9 @@
         "on": false
       }
     ]
+  },
+  "radio": {
+    "favorites": [],
+    "last": null
   }
 }

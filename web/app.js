@@ -684,7 +684,7 @@ const SECTIONS = [
   ['tiles', 'Kacheln'], ['profiles', 'Profile'], ['browser', 'Browser & YouTube'], ['apps', 'Programme'],
   ['channels', 'Live-TV-Sender'], ['recorder', 'Mediathek-Rekorder'], ['look', 'Aussehen'], ['boot', 'Start & Boot'], ['weather', 'Wetter & Ort'],
   ['audio', 'Ton'], ['saver', 'Bildschirmschoner'], ['remote', 'Handy & Verbindung'], ['bluetooth', 'Bluetooth'],
-  ['services', 'Netzwerk-Dienste'], ['power', 'Energie'], ['system', 'System & Updates'], ['help', 'Tasten & Hilfe'],
+  ['services', 'Netzwerk-Dienste'], ['power', 'Energie'], ['system', 'System & Updates'], ['diagnose', 'Fehlersuche'], ['help', 'Tasten & Hilfe'],
 ];
 
 function openSettings(section) {
@@ -733,6 +733,73 @@ function stepper(value, { min, max, step, fmt }, onChange) {
 async function saveGeneral(patch) {
   S.state.general = await api('/api/general', 'POST', patch);
   applyLook();
+}
+
+
+/* ---------- Ton-Assistent ----------
+ * Probiert nacheinander Wege aus, die Laptop-Lautsprecher zum Laufen zu bringen.
+ * Bei jedem Versuch spielt der Laptop einen Testton und fragt: Hörst du ihn?
+ * Startet nur auf Knopfdruck – oder einmal nach einem Neustart, den er selbst
+ * ausgelöst hat (älterer Treiber). */
+async function audioWizard(from) {
+  const body = h('div', {});
+  const m = openModal([h('h3', {}, 'Ton-Assistent'), body], 'small');
+  const step = (title, text, buttons) => {
+    body.innerHTML = '';
+    body.append(h('div', { class: 'lead', style: { textTransform: 'none' } }, title), h('p', { style: { fontSize: 'calc(2*var(--u))', lineHeight: 1.5 } }, text),
+      h('div', { class: 'btns' }, buttons.map((b, i) => h('button', { class: 'btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : ''), 'data-nav': true, 'data-nav-default': i === 0 || null, onclick: b.run }, b.label))));
+    setTimeout(() => Nav.first(), 30);
+  };
+  const busy = (t) => { body.innerHTML = ''; body.append(h('p', { style: { fontSize: 'calc(2*var(--u))' } }, t)); };
+  const call = async (action, extra = {}) => { busy('Einen Moment, ich probiere etwas aus … (bis zu 20 Sekunden)'); show(await api('/api/audio/wizard', 'POST', Object.assign({ action }, extra)).catch((e) => ({ kind: 'error', error: e.message }))); };
+  const cancel = async () => { await api('/api/audio/wizard', 'POST', { action: 'cancel' }).catch(() => {}); m.close(); };
+  function show(r) {
+    if (r.kind === 'listen') step(`Versuch ${r.step} von ${r.total}: ${r.title}`, 'Der Laptop spielt gerade einen Gong. Hörst du ihn aus den Lautsprechern des LAPTOPS (nicht aus dem Monitor)?', [
+      { label: 'Ja, höre ich', primary: true, run: () => call('heard') },
+      { label: 'Nein', run: () => call('notheard') },
+      { label: 'Nochmal abspielen', run: () => { api('/api/audio/wizard', 'POST', { action: 'replay' }); L.toast('Gong …'); } },
+      { label: 'Abbrechen', run: cancel }]);
+    else if (r.kind === 'reboot') step(`Versuch ${r.step} von ${r.total}: ${r.title}`, 'Die einfachen Wege haben nicht geklappt. Als Nächstes probiere ich den älteren Soundtreiber. Dafür startet der Laptop neu – danach geht der Assistent automatisch weiter. Lässt sich jederzeit zurückstellen (Fehlersuche → Ton).', [
+      { label: 'Neu starten und probieren', primary: true, run: () => call('reboot', { legacy: true }) },
+      { label: 'Abbrechen', run: cancel }]);
+    else if (r.kind === 'done') { step('Geschafft ✓', 'Die Laptop-Lautsprecher funktionieren. Ab jetzt spielt der Ton über Laptop und Fernseher gleichzeitig – das wird bei jedem Start so eingerichtet. Umstellen unter Einstellungen → Ton.', [{ label: 'Fertig', primary: true, run: () => { m.close(); if (S.view === 'settings') renderSection(true); } }]); }
+    else if (r.kind === 'failed') step('Leider nicht geklappt', 'Ich habe alles ausprobiert, was ohne Bastelei geht. Die Laptop-Lautsprecher werden auf diesem Modell von Linux vermutlich (noch) nicht unterstützt. Der Ton läuft weiter über den Monitor. ' + (r.legacy ? 'Der ältere Treiber ist noch aktiv – zurückstellen unter Fehlersuche → Ton.' : '') + ' Tipp: Eine kleine Bluetooth-Box oder Soundbar klingt deutlich besser als Monitor-Lautsprecher.', [{ label: 'Schließen', primary: true, run: () => m.close() }]);
+    else if (r.ok) m.close();
+    else step('Fehler', r.error || 'Unbekannter Fehler', [{ label: 'Schließen', run: () => m.close() }]);
+  }
+  call('start', from ? { from } : {});
+}
+
+/* ---------- Fehlersuche ---------- */
+async function renderDiagnose(add, head) {
+  head('Fehlersuche', 'Prüft Lichtung nach Themen. Grün = in Ordnung, gelb = Hinweis, rot = Problem. Wo es geht, gibt es einen Knopf zum Reparieren.');
+  const out = h('div', {});
+  const topics = (await api('/api/diag').catch(() => ({ topics: [] }))).topics || [];
+  const bar = h('div', { class: 'btns', style: { flexWrap: 'wrap' } });
+  const FIX = { 'audio-repair': 'Ton reparieren', 'audio-apply': 'Neu einrichten', 'audio-wizard': 'Ton-Assistent', 'audio-sof': 'Neuen Treiber zurück', 'bt-power': 'Einschalten', 'update-check': 'Jetzt prüfen' };
+  async function runTopic(t, keep) {
+    const sec = h('div', { style: { marginTop: 'calc(2*var(--u))' } }, h('div', { class: 'lead' }, t.title + ' – prüfe …'));
+    if (!keep) out.innerHTML = '';
+    out.append(sec);
+    const r = await api('/api/diag?topic=' + t.id).catch((e) => ({ items: [{ name: 'Fehler', state: 'fail', detail: e.message }] }));
+    sec.innerHTML = '';
+    sec.append(h('div', { class: 'lead' }, t.title));
+    r.items.forEach((it) => {
+      const color = it.state === 'ok' ? '#7fbf8e' : it.state === 'warn' ? '#e0b45c' : '#e0705c';
+      sec.append(h('div', { class: 'list-row', style: { alignItems: 'center', gap: 'calc(1.6*var(--u))' } },
+        h('span', { style: { width: 'calc(1.4*var(--u))', height: 'calc(1.4*var(--u))', borderRadius: '50%', background: color, flex: 'none' } }),
+        h('div', { style: { flex: 1 } }, h('div', {}, it.name), it.detail ? h('div', { class: 'lead', style: { textTransform: 'none', margin: 0 } }, it.detail) : null),
+        it.fix ? h('button', { class: 'btn', 'data-nav': true, onclick: async () => {
+          if (it.fix === 'audio-wizard') return audioWizard();
+          const f = await api('/api/diag/fix', 'POST', { action: it.fix }).catch((e) => ({ msg: e.message }));
+          L.toast(f.msg || 'Erledigt', 5000);
+          setTimeout(() => runTopic(t), 4000);
+        } }, FIX[it.fix] || 'Reparieren') : null));
+    });
+  }
+  bar.append(h('button', { class: 'btn primary', 'data-nav': true, onclick: async () => { out.innerHTML = ''; for (const t of topics) await runTopic(t, true); } }, 'Alles prüfen'));
+  topics.forEach((t) => bar.append(h('button', { class: 'btn', 'data-nav': true, onclick: () => runTopic(t) }, t.title)));
+  add(bar, out);
 }
 
 function renderSection(keepFocus) {
@@ -815,6 +882,11 @@ function renderSection(keepFocus) {
             '„Warm“ nimmt kleinen Monitor-Lautsprechern das Blecherne, „Sprache klar“ hilft bei Nachrichten und Filmen'),
           field('Ausgabe', segmented([['beide', 'Laptop + Fernseher'], ['einzeln', 'Einzeln']], st.output || 'beide', (v) => setK({ output: v }, v === 'beide' ? 'Beide Lautsprecher' : 'Einzelner Ausgang')),
             'Bei „Beide“ kann der Fernseher minimal nachhallen (er gibt den Ton etwas später aus)'));
+        klangBox.append(h('div', { class: 'btns', style: { margin: 'calc(1.6*var(--u)) 0' } },
+          h('button', { class: 'btn primary', 'data-nav': true, onclick: () => audioWizard() }, st.speakerSink ? 'Ton-Assistent erneut starten' : 'Ton-Assistent: Laptop-Lautsprecher einrichten'),
+          h('button', { class: 'btn', 'data-nav': true, onclick: async () => { await api('/api/audio/repair', 'POST', {}); L.toast('Ton wird repariert …', 5000); } }, 'Ton reparieren'),
+          h('button', { class: 'btn', 'data-nav': true, onclick: () => openSettings('diagnose') }, 'Fehlersuche')));
+        if (a.report && a.report.length) klangBox.append(h('div', { class: 'lead', style: { textTransform: 'none' } }, 'Zuletzt: ' + a.report.join(' · ')));
         box.innerHTML = '';
         const real = (a.sinks || []).filter((sk) => !sk.virtual);
         if (!real.length) box.append(h('div', { class: 'lead' }, 'Keine Ausgänge gefunden (PipeWire läuft nicht?).'));
@@ -833,6 +905,9 @@ function renderSection(keepFocus) {
         h('button', { class: 'btn', 'data-nav': true, onclick: () => openSettings('system') }, 'Tasten testen (Systeminfo)')));
       break;
     }
+    case 'diagnose':
+      renderDiagnose(add, head);
+      break;
     default:
       window.renderExtraSection?.(S.section, { add, head, body, g, field, toggle, stepper, saveGeneral });
   }
@@ -1147,6 +1222,12 @@ setInterval(() => {
   };
   if (!S.state.general.setupDone) runSetup(start);
   else start();
+  // Nur wenn der Ton-Assistent selbst neu gestartet hat (älterer Treiber): einmal weitermachen.
+  // Sonst erscheint er nie von allein.
+  if (S.state.general.setupDone && S.state.audioWizardPending && !sessionStorage.getItem('lichtung-audiowiz')) {
+    sessionStorage.setItem('lichtung-audiowiz', '1');
+    setTimeout(() => audioWizard('legacy'), 12000);     // Ton-System braucht nach dem Start ein paar Sekunden
+  }
   // sanftes Einblenden nach dem Bootbildschirm
   requestAnimationFrame(() => document.body.classList.add('ready'));
 })();

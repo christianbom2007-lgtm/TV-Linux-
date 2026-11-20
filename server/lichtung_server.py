@@ -48,7 +48,8 @@ import extras  # noqa: E402  (Mediathek, Programmführer, Links)
 import android  # noqa: E402  (Android spiegeln mit scrcpy)
 import system  # noqa: E402  (sway, Brave, Programme, Bluetooth, KDE Connect, Updates …)
 import radio  # noqa: E402  (Internetradio über radio-browser.info + mpv)
-import klang  # noqa: E402  (Klangregelung + Laptop und Fernseher gleichzeitig)
+import audio  # noqa: E402  (Ton: Start-Reparatur, Klang, Laptop + Fernseher, Ton-Assistent)
+import diag  # noqa: E402  (Fehlersuche nach Themen)
 
 # --------------------------------------------------------------------------
 # Pfade und Grundeinstellungen
@@ -340,24 +341,49 @@ def audio_sinks():
 
 
 def audio_settings():
-    return dict(klang.DEFAULTS, **CONFIG.setdefault("audio", {}))
+    return dict(audio.DEFAULTS, **CONFIG.setdefault("audio", {}))
 
 
-def apply_klang_async():
-    """Klang/Ausgabe im Hintergrund anwenden (PipeWire-Neustart dauert ein paar Sekunden)."""
+def _save_audio(a):
+    CONFIG["audio"] = a
+    save_config()
+
+
+AUDIO = audio.Audio(lambda: CONFIG.setdefault("audio", {}), _save_audio,
+                    admin=lambda *a, **k: system.admin(*a, **k), log=lambda *a: log(*a))
+
+
+def run_rc(cmd, timeout=15):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except Exception as e:
+        return 127, str(e)
+
+
+def diag_context():
+    return {"audio": audio, "audio_settings": audio_settings(), "eq_running": AUDIO.eq_running(),
+            "lan_ip": lan_ip, "sway_ok": SWAY.available, "app_dir": APP_DIR, "img_dir": IMG_DIR,
+            "updater": UPDATER, "auto_update": CONFIG["general"].get("autoUpdate", True)}
+
+
+def apply_audio_async():
+    """Ton-Einstellungen im Hintergrund anwenden und das Ergebnis melden."""
     def work():
-        res = klang.apply(audio_settings(), log=log)
+        res = AUDIO.apply()
         broadcast("audiodone", **res)
-        log("Klang angewendet:", res)
+        log("Ton angewendet:", res.get("report"))
     threading.Thread(target=work, daemon=True).start()
 
 
-def klang_startup():
-    """Beim Start (und nach einem Update) die gewünschten Ton-Einstellungen sicherstellen."""
-    if not shutil.which("pw-dump"):
+def audio_startup():
+    """Beim Start: Ton reparieren falls nötig, Klang + Laptop/Fernseher einrichten."""
+    if not shutil.which("pactl"):
         return
-    time.sleep(10)                           # PipeWire und WirePlumber erst hochfahren lassen
-    log("Klang beim Start:", klang.apply(audio_settings(), log=log))
+    time.sleep(8)                            # PipeWire erst hochfahren lassen
+    res = AUDIO.apply()
+    log("Ton beim Start:", res.get("report"))
+    threading.Thread(target=AUDIO.watchdog, daemon=True).start()
 
 
 def go_home():
@@ -966,7 +992,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(get_volume())
         if path == "/api/audio":
             return self.send_json(dict(audio_sinks(), settings=audio_settings(),
-                                       presets=[{"id": k, "title": v["title"]} for k, v in klang.PRESETS.items()]))
+                                       presets=[{"id": k, "title": v["title"]} for k, v in audio.PRESETS.items()],
+                                       report=AUDIO.report, eq=AUDIO.eq_running(), legacy=AUDIO.legacy_active()))
         if path == "/api/mediathek":
             # Alle Reihen parallel laden (jede Reihe = eine Abfrage)
             rows = [r for r in CONFIG.get("mediathekRows", []) if r.get("on", True)]
@@ -1043,6 +1070,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"menu": menu.strip() == "on", "theme": cur.strip(), "job": job.strip(), "themes": themes, "admin": rc == 0})
         if path == "/api/music":
             return self.send_json(MUSIC.status())
+        if path == "/api/diag":
+            topic = qs.get("topic", [""])[0]
+            if not topic:
+                return self.send_json({"topics": [{"id": k, "title": v} for k, v in diag.TOPICS]})
+            return self.send_json({"topic": topic, "items": diag.run_topic(topic, diag_context())})
         if path == "/api/radio":
             r = CONFIG.get("radio", {})
             return self.send_json(dict(RADIO.status(), favorites=r.get("favorites", []), last=r.get("last"),
@@ -1126,6 +1158,7 @@ class Handler(BaseHTTPRequestHandler):
             "night": NIGHT.available,
             "version": UPDATER.installed().get("version", "?"),
             "radio": RADIO.status(),
+            "audioWizardPending": bool(CONFIG.get("audio", {}).get("wizardPending")),
         }
 
     def sse(self):
@@ -1583,30 +1616,69 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "added": n})
 
         if path == "/api/audio":
-            # Einen bestimmten Ausgang wählen: Ist Klang/Kombi aktiv, läuft der Ton
-            # weiter durch den Filter – nur sein Ziel ändert sich.
+            # Einen bestimmten Ausgang wählen → "Einzeln" mit diesem Ziel
             sid = int(body.get("id", 0))
             sink = next((x for x in audio_sinks()["sinks"] if x["id"] == sid), None)
-            a = CONFIG.setdefault("audio", {})
             if sink and not sink["virtual"]:
+                a = CONFIG.setdefault("audio", {})
                 a["sink"], a["output"] = sink["node"], "einzeln"
                 save_config()
-                if audio_settings()["klang"] in klang.PRESETS:
-                    apply_klang_async()
-                    return self.send_json(dict(audio_sinks(), pending=True))
-                if os.path.exists(klang.CONF_FILE):      # Kombi-Ausgang wird nicht mehr gebraucht
-                    apply_klang_async()
+                apply_audio_async()
+                return self.send_json(dict(audio_sinks(), pending=True))
             run(["wpctl", "set-default", str(sid)])
             return self.send_json(audio_sinks())
         if path == "/api/audio/klang":
             a = CONFIG.setdefault("audio", {})
-            if body.get("klang") in list(klang.PRESETS) + ["aus"]:
+            if body.get("klang") in list(audio.PRESETS) + ["aus"]:
                 a["klang"] = body["klang"]
             if body.get("output") in ("beide", "einzeln"):
                 a["output"] = body["output"]
             save_config()
-            apply_klang_async()
+            apply_audio_async()
             return self.send_json({"ok": True, "pending": True, "settings": audio_settings()})
+        if path == "/api/audio/repair":
+            def work():
+                steps = audio.repair_basic(log)
+                res = AUDIO.apply()
+                broadcast("audiodone", ok=res["ok"], report=steps + res.get("report", []), error=res.get("error"))
+            threading.Thread(target=work, daemon=True).start()
+            return self.send_json({"ok": True, "pending": True})
+        if path == "/api/diag/fix":
+            act = body.get("action", "")
+            if act in ("audio-repair", "audio-apply"):
+                if act == "audio-repair":
+                    audio.repair_basic(log)
+                apply_audio_async()
+                return self.send_json({"ok": True, "msg": "Ton wird repariert …"})
+            if act == "audio-sof":
+                rc, out = system.admin("audio-driver", "sof", timeout=180)
+                return self.send_json({"ok": rc == 0, "msg": "Neuer Treiber ab dem nächsten Neustart" if rc == 0 else out[:160]})
+            if act == "bt-power":
+                rc, out = run_rc(["bluetoothctl", "power", "on"])
+                return self.send_json({"ok": rc == 0, "msg": "Bluetooth eingeschaltet" if rc == 0 else out[:160]})
+            if act == "update-check":
+                c = UPDATER.check()
+                return self.send_json({"ok": c.get("ok", False), "msg": ("Neue Version: " + c["latest"]) if c.get("newer") else (c.get("error") or "Aktuell ✓")})
+            return self.send_json({"ok": False, "msg": "unbekannte Reparatur"}, 400)
+        if path == "/api/audio/wizard":
+            # Ton-Assistent: start | heard | notheard | replay | reboot | cancel
+            act = body.get("action", "")
+            if act == "start":
+                return self.send_json(AUDIO.wizard_start(body.get("from")))
+            if act in ("heard", "notheard"):
+                return self.send_json(AUDIO.wizard_answer(act == "heard"))
+            if act == "replay":
+                return self.send_json(AUDIO.wizard_replay())
+            if act == "reboot":
+                return self.send_json(AUDIO.wizard_reboot(body.get("legacy", True)))
+            if act == "cancel":
+                AUDIO.wizard = None
+                a = CONFIG.setdefault("audio", {})
+                a["wizardPending"] = False
+                save_config()
+                apply_audio_async()
+                return self.send_json({"ok": True})
+            return self.send_json({"error": "unbekannte Aktion"}, 400)
 
         if path == "/api/sleep":
             if body.get("cancel"):
@@ -1888,7 +1960,7 @@ def main():
     threading.Thread(target=sleep_watcher, daemon=True).start()
     threading.Thread(target=update_watcher, daemon=True).start()
     threading.Thread(target=RADIO.watch, daemon=True).start()
-    threading.Thread(target=klang_startup, daemon=True).start()
+    threading.Thread(target=audio_startup, daemon=True).start()
     threading.Thread(target=media_cache_worker, daemon=True).start()
     EPG.start()
     SWAY.start_watch(lambda: broadcast("home", url=LAUNCHER_URL), lambda: CONFIG["general"].get("outputMode", "last"))

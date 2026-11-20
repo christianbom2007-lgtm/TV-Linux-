@@ -23,6 +23,7 @@
 #    dienst <name> on|off|status  kuma | vaultwarden | gitea | syncthing | tailscale
 #    tailscale-login              Anmelde-Link für Tailscale holen
 #    vaultwarden-https            Vaultwarden über Tailscale mit HTTPS erreichbar machen
+#    audio-driver legacy|sof|status  Soundtreiber: älterer HDA-Treiber oder SOF (Neustart nötig)
 # ==========================================================================
 set -u
 STATE=/var/lib/lichtung-tv
@@ -74,6 +75,20 @@ grub-menu)
   ;;
 grub-menu-status)
   grep -q '^GRUB_TIMEOUT_STYLE=menu' /etc/default/grub 2>/dev/null && echo on || echo off
+  ;;
+# --------------------------------------------------------------------------
+audio-driver)
+  # Manche Laptops (Intel ab 10. Gen.) spielen über den älteren HDA-Treiber Ton
+  # auf den Lautsprechern, wenn der neuere SOF-Treiber nur HDMI kann.
+  F=/etc/modprobe.d/lichtung-audio.conf
+  case "${2:-}" in
+    legacy) echo "options snd-intel-dspcfg dsp_driver=1   # Lichtung Ton-Assistent" > "$F" ;;
+    sof)    rm -f "$F" ;;
+    status) [ -f "$F" ] && echo legacy || echo sof; exit 0 ;;
+    *) exit 2 ;;
+  esac
+  update-initramfs -u >/dev/null 2>&1 || true
+  say "ok"
   ;;
 # --------------------------------------------------------------------------
 plymouth)

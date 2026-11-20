@@ -647,78 +647,156 @@ class TestRadioAndImages(unittest.TestCase):
         prof["continue"] = []
 
 
-class TestKlang(unittest.TestCase):
-    """Klangregelung + Laptop und Fernseher gleichzeitig (PipeWire-Konfiguration)."""
+class TestAudio(unittest.TestCase):
+    """Ton: Start-Reparatur, Kombi + Klang mit Rückfall, Ton-Assistent, Fehlersuche."""
+    A = None
+
+    HDMI = {"name": "alsa_output.pci.HiFi__HDMI1__sink", "description": "HDMI 1", "hdmi": True, "available": True, "ports": []}
+    HDMI2 = {"name": "alsa_output.pci.HiFi__HDMI2__sink", "description": "HDMI 2", "hdmi": True, "available": False, "ports": []}
+    HP = {"name": "alsa_output.pci.HiFi__Headphones__sink", "description": "Headphones", "hdmi": False, "available": True, "ports": []}
+    SPK = {"name": "alsa_output.pci.analog-stereo", "description": "Lautsprecher", "hdmi": False, "available": True, "ports": ["analog-output-headphones", "analog-output-speaker"]}
 
     def setUp(self):
-        self.dir = tempfile.mkdtemp()
-        self.old = (srv.klang.CONF_DIR, srv.klang.CONF_FILE, srv.klang.unmute_speakers)
-        srv.klang.CONF_DIR = self.dir
-        srv.klang.CONF_FILE = os.path.join(self.dir, "60-lichtung-klang.conf")
-        srv.klang.unmute_speakers = lambda: None
-        self.restarts, self.defaults = [], []
+        self.A = srv.audio
+        self.saved = {n: getattr(self.A, n) for n in ("run", "sinks", "wait_sinks", "restart_stack", "unmute_speakers", "load_combine", "unload_combine", "OLD_CONF", "NOUCM_RULE", "WP_STATE", "LEGACY_FLAG", "EQ_CONF")}
+        tmp = tempfile.mkdtemp()
+        self.A.OLD_CONF, self.A.NOUCM_RULE = os.path.join(tmp, "old.conf"), os.path.join(tmp, "wp", "noucm.conf")
+        self.A.WP_STATE, self.A.LEGACY_FLAG, self.A.EQ_CONF = os.path.join(tmp, "wpstate"), os.path.join(tmp, "legacy"), os.path.join(tmp, "eq.conf")
+        self.calls, self.restarts = [], []
+        self.current = [self.HDMI, self.HDMI2, self.HP]
+        self.A.run = lambda cmd, timeout=10: (self.calls.append(cmd), (0, ""))[1]
+        self.A.sinks = lambda: list(self.current)
+        self.A.wait_sinks = lambda seconds=12, name=None: (list(self.current) if (name in [s["name"] for s in self.current] if name else self.A.hardware(self.current)) else None)
+        self.A.restart_stack = lambda: self.restarts.append(1)
+        self.A.unmute_speakers = lambda: True
+        self.combine_ok = True
+        def lc(slaves):
+            self.combine_slaves = slaves
+            if self.combine_ok:
+                self.current = self.current + [{"name": self.A.COMBINE, "description": "Kombi", "hdmi": False, "available": True, "ports": []}]
+            return self.combine_ok
+        self.A.load_combine = lc
+        self.A.unload_combine = lambda: None
+        self.store = {}
+        self.audio = self.A.Audio(lambda: self.store, lambda a: self.store.update(a), log=lambda *a: None)
+        self.eq_ok = True
+        self.audio.eq_start = lambda preset, target: (setattr(self, "eq_target", target), self.eq_ok)[1]
+        self.audio.eq_stop = lambda: None
+        self.audio.play_tone = lambda sink: self.calls.append(["TON", sink])
 
     def tearDown(self):
-        srv.klang.CONF_DIR, srv.klang.CONF_FILE, srv.klang.unmute_speakers = self.old
+        for n, v in self.saved.items():
+            setattr(self.A, n, v)
 
-    def apply(self, settings, appears=True):
-        ids = {"lichtung_klang": 90, "lichtung_doppelt": 91, "alsa_output.x.HiFi__HDMI1__sink": 50}
-        return srv.klang.apply(settings, log=lambda *a: None, restart=lambda: self.restarts.append(1),
-                               waiter=lambda name: ids if appears and name in ids else None,
-                               setter=lambda nid: self.defaults.append(nid))
+    def defaults_set(self):
+        return [c[2] for c in self.calls if c[:2] == ["pactl", "set-default-sink"]]
 
-    def test_conf_variants(self):
-        c = srv.klang.build_conf("warm", "beide")
-        self.assertIn("libpipewire-module-combine-stream", c)
-        self.assertIn('target.object = "lichtung_doppelt"', c)
-        self.assertIn('inputs = [ "pre:In 1" ]', c)              # genau ein Eingang pro Kanal
-        self.assertEqual(c.count("{"), c.count("}"))              # Klammern stimmen
-        self.assertEqual(c.count("["), c.count("]"))
-        c = srv.klang.build_conf("klar", "einzeln", "alsa_output.x.HiFi__HDMI1__sink")
-        self.assertNotIn("combine-stream", c)
-        self.assertIn('target.object = "alsa_output.x.HiFi__HDMI1__sink"', c)
-        self.assertEqual(srv.klang.build_conf("aus", "einzeln", "x"), "")
-        self.assertIn("combine-stream", srv.klang.build_conf("aus", "beide"))
-        self.assertNotIn('"; rm', srv.klang.build_conf("warm", "einzeln", 'x"; rm -rf /'))   # keine Einschleusung
+    def test_candidates(self):
+        self.assertEqual([s["name"] for s in self.A.laptop_candidates([self.HDMI, self.HP, self.SPK])], [self.HP["name"], self.SPK["name"]])
+        self.assertEqual(self.A.tv_sinks([self.HDMI, self.HDMI2]), [self.HDMI])       # nur verbundenes HDMI
 
-    def test_apply_and_default(self):
-        r = self.apply({"klang": "warm", "output": "beide"})
+    def test_apply_full(self):
+        r = self.audio.apply()                                     # Standard: Warm + Laptop/Fernseher
         self.assertTrue(r["ok"])
-        self.assertTrue(os.path.exists(srv.klang.CONF_FILE))
-        self.assertEqual(self.defaults, [90])                    # Standard = Klang-Filter
-        self.assertEqual(len(self.restarts), 1)
-        self.apply({"klang": "warm", "output": "beide"})
-        self.assertEqual(len(self.restarts), 1)                  # nichts geändert → kein Neustart
-        self.apply({"klang": "aus", "output": "beide"})
-        self.assertEqual(self.defaults[-1], 91)                  # nur Kombi-Ausgang
-        self.apply({"klang": "aus", "output": "einzeln", "sink": "alsa_output.x.HiFi__HDMI1__sink"})
-        self.assertFalse(os.path.exists(srv.klang.CONF_FILE))    # Datei weg = Ton wie früher
-        self.assertEqual(self.defaults[-1], 50)
+        self.assertEqual(self.combine_slaves, [self.HP["name"], self.HDMI["name"]])
+        self.assertEqual(self.eq_target, self.A.COMBINE)
+        self.assertEqual(self.defaults_set()[-1], self.A.EQ)
 
-    def test_rollback_when_sink_missing(self):
-        r = self.apply({"klang": "bass", "output": "beide"}, appears=False)
+    def test_apply_fallbacks(self):
+        self.eq_ok = False                                         # Klangregelung startet nicht
+        self.audio.apply()
+        self.assertEqual(self.defaults_set()[-1], self.A.COMBINE)
+        self.combine_ok, self.current = False, [self.HDMI, self.HP]   # Kombi klappt auch nicht
+        self.audio.apply()
+        self.assertEqual(self.defaults_set()[-1], self.HDMI["name"])
+        self.store.update({"klang": "aus", "output": "einzeln", "sink": self.HP["name"]})
+        self.audio.apply()
+        self.assertEqual(self.defaults_set()[-1], self.HP["name"])
+
+    def test_repair_when_no_outputs(self):
+        open(self.A.OLD_CONF, "w").write("kaputt")
+        self.current = []
+        r = self.audio.apply()
         self.assertFalse(r["ok"])
-        self.assertFalse(os.path.exists(srv.klang.CONF_FILE))    # Sicherheitsnetz: zurückgerollt
-        self.assertEqual(len(self.restarts), 2)
+        self.assertFalse(os.path.exists(self.A.OLD_CONF))         # Altlast entfernt
+        self.assertGreaterEqual(len(self.restarts), 2)
+        self.current = [self.HDMI]
+        steps = self.A.repair_basic(lambda *a: None)
+        self.assertIn("Ausgänge vorhanden ✓", steps)
+
+    def test_wizard_flow(self):
+        r = self.audio.wizard_start()
+        self.assertEqual((r["kind"], r["strategy"], r["sink"]), ("listen", "mixer", self.HP["name"]))
+        self.assertIn(["TON", self.HP["name"]], self.calls)
+        self.current = [self.HDMI, self.SPK]                       # ohne UCM erscheint ein Analog-Ausgang
+        r = self.audio.wizard_answer(False)
+        self.assertEqual((r["kind"], r["strategy"], r["sink"]), ("listen", "noucm", self.SPK["name"]))
+        self.assertTrue(os.path.exists(self.A.NOUCM_RULE))
+        self.assertIn(["pactl", "set-sink-port", self.SPK["name"], "analog-output-speaker"], self.calls)
+        r = self.audio.wizard_answer(True)
+        self.assertEqual(r["kind"], "done")
+        self.assertEqual(self.store["speakerSink"], self.SPK["name"])
+        self.assertEqual(self.store["strategy"], "noucm")
+        self.assertIsNone(self.audio.wizard)
+
+    def test_wizard_reaches_reboot_then_fails(self):
+        self.current = [self.HDMI, self.HP]
+        self.audio.wizard_start()
+        self.current = [self.HDMI]                                 # ohne UCM: kein Laptop-Ausgang
+        r = self.audio.wizard_answer(False)
+        self.assertEqual(r["kind"], "reboot")                      # nächster Schritt braucht Neustart
+        open(self.A.LEGACY_FLAG, "w").write("x")                   # … nach dem Neustart
+        self.current = [self.HDMI, self.HP]
+        r = self.audio.wizard_start("legacy")
+        self.assertEqual((r["kind"], r["strategy"]), ("listen", "legacy"))
+        r = self.audio.wizard_answer(False)
+        self.assertEqual(r["kind"], "failed")
+        self.assertTrue(r["legacy"])
+        self.assertFalse(os.path.exists(self.A.NOUCM_RULE))       # aufgeräumt
+        self.assertFalse(self.store.get("wizardPending"))
+
+    def test_eq_conf_and_tone(self):
+        c = self.A.eq_conf("warm", 'x"; rm -rf /')
+        self.assertIn('inputs = [ "pre:In 1" ]', c)
+        self.assertEqual(c.count("{"), c.count("}"))
+        self.assertEqual(c.count("["), c.count("]"))
+        self.assertNotIn('"; rm', c)                               # keine Einschleusung
+        a = self.saved["run"]                                      # echte Funktion für den Testton nicht nötig
+        self.audio.tone = os.path.join(tempfile.mkdtemp(), "ton.wav")
+        import wave as wv
+        with wv.open(self.audio.make_tone()) as w:
+            self.assertEqual((w.getnchannels(), w.getframerate()), (2, 48000))
+            self.assertGreater(w.getnframes(), 48000)
 
     def test_endpoints(self):
-        applied = []
-        old = srv.apply_klang_async
-        srv.apply_klang_async = lambda: applied.append(dict(srv.audio_settings()))
+        st, a = call("GET", "/api/audio")
+        self.assertEqual(st, 200)
+        self.assertEqual(a["settings"]["klang"], "warm")
+        self.assertIn("report", a)
+        old = srv.apply_audio_async
+        srv.apply_audio_async = lambda: None
         try:
-            st, a = call("GET", "/api/audio")
-            self.assertEqual(st, 200)
-            self.assertEqual(a["settings"]["klang"], "warm")          # Standard: an
-            self.assertEqual(a["settings"]["output"], "beide")
-            self.assertIn("klar", [p["id"] for p in a["presets"]])
             r = call("POST", "/api/audio/klang", {"klang": "klar", "output": "einzeln"})[1]
             self.assertEqual(r["settings"]["klang"], "klar")
-            self.assertEqual(applied[-1]["output"], "einzeln")
             call("POST", "/api/audio/klang", {"klang": "quatsch"})
-            self.assertEqual(srv.audio_settings()["klang"], "klar")     # ungültig → unverändert
+            self.assertEqual(srv.audio_settings()["klang"], "klar")
+            self.assertEqual(call("POST", "/api/audio/wizard", {"action": "quatsch"})[0], 400)
+            self.assertTrue(call("POST", "/api/audio/wizard", {"action": "cancel"})[1]["ok"])
         finally:
-            srv.apply_klang_async = old
+            srv.apply_audio_async = old
             srv.CONFIG["audio"] = {}
+
+    def test_diagnose(self):
+        st, r = call("GET", "/api/diag")
+        self.assertIn("ton", [t["id"] for t in r["topics"]])
+        for t in r["topics"]:
+            st, d = call("GET", "/api/diag?topic=" + t["id"])
+            self.assertEqual(st, 200)
+            for it in d["items"]:
+                self.assertIn(it["state"], ("ok", "warn", "fail"))
+        boom = srv.diag.run_topic("system", {})            # fehlender Kontext → Fehlermeldung statt Absturz
+        self.assertTrue(isinstance(boom, list))
+        self.assertEqual(call("POST", "/api/diag/fix", {"action": "quatsch"})[0], 400)
 
 
 if __name__ == "__main__":

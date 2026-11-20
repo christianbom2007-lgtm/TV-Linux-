@@ -127,7 +127,10 @@ chmod +x "$APP/system/"*.sh "$APP/system/lichtung-ctl" "$APP/system/lichtung-ope
 ln -sf "$APP/system/lichtung" /usr/local/bin/lichtung
 # Versionsstand merken (Commit aus git oder aus dem GitHub-Ordnernamen)
 COMMIT=$(git -C "$SRC" rev-parse HEAD 2>/dev/null || basename "$SRC" | grep -oE '[0-9a-f]{7,40}$' || echo "")
-printf '{"version": "2.0", "commit": "%s", "installed": "%s", "installedISO": "%s"}\n' "$COMMIT" "$(date '+%d.%m.%Y %H:%M')" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$APP/VERSION"
+# RELEASE = Name des getesteten GitHub-Releases (z. B. iso-20261120-1700). Daran erkennt
+# der Updater, ob es etwas Neueres gibt. Fehlt die Datei (Paket direkt aus git), bleibt es leer.
+RELEASE=$(tr -cd 'a-zA-Z0-9._-' 2>/dev/null < "$SRC/RELEASE" || true)
+printf '{"version": "2.0", "release": "%s", "commit": "%s", "installed": "%s", "installedISO": "%s"}\n' "$RELEASE" "$COMMIT" "$(date '+%d.%m.%Y %H:%M')" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$APP/VERSION"
 mkdir -p /etc/lichtung-tv
 [ -f /etc/lichtung-tv/session.conf ] || cp "$APP/system/session.conf" /etc/lichtung-tv/session.conf
 . /etc/lichtung-tv/session.conf

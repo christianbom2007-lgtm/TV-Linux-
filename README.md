@@ -10,21 +10,28 @@ Dein alter Lenovo-Laptop wird zum Fernseh-Gerät: Er startet ohne Anmeldung dire
 
 Version 2 bringt Brave, den Fenstermanager sway (Brave bleibt im Hintergrund offen), reparierte Lautstärketasten, Musikbox, Ambiente, Mediathek-Rekorder, Design-Welten, Netzwerk-Dienste u. v. m. Deine Kacheln, Profile und Fotos bleiben erhalten.
 
-**Weg A – USB-Stick (geht immer, auch bei privatem Repo)**
-1. Am Galaxy Book auf GitHub: **Code → Download ZIP** → `TV-Linux--main.zip` auf einen USB-Stick kopieren.
+**Weg A – direkt aus dem Internet (am einfachsten)**
+```bash
+cd /root && curl -L https://github.com/christianbom2007-lgtm/TV-Linux-/releases/latest/download/lichtung-tv.tar.gz -o lichtung-tv.tar.gz \
+  && mkdir -p lichtung-neu && tar xzf lichtung-tv.tar.gz -C lichtung-neu && cd lichtung-neu && bash install.sh && reboot
+```
+
+**Weg B – USB-Stick (wenn der Laptop kein Internet hat)**
+1. Am Galaxy Book auf GitHub: **Releases → neueste Version → `lichtung-tv.tar.gz`** herunterladen und auf einen USB-Stick kopieren.
 2. Am Laptop: **Strg + Alt + F2**, als `root` anmelden (Passwort 123456), dann:
    ```bash
    mount /dev/sdb1 /mnt          # Stick (bei Bedarf mit lsblk nachsehen)
-   cd /root && python3 -m zipfile -e /mnt/TV-Linux--main.zip . && umount /mnt
-   cd TV-Linux--main && bash install.sh && reboot
+   mkdir -p /root/lichtung-neu && tar xzf /mnt/lichtung-tv.tar.gz -C /root/lichtung-neu && umount /mnt
+   cd /root/lichtung-neu && bash install.sh && reboot
    ```
 
-**Weg B – direkt aus dem Internet (nur wenn das Repo öffentlich ist)**
-```bash
-cd /root && curl -L https://github.com/christianbom2007-lgtm/TV-Linux-/archive/refs/heads/main.tar.gz | tar xz && cd TV-Linux--main && bash install.sh && reboot
-```
+**Künftige Updates kommen von selbst.** Jede Änderung im Repo durchläuft die Tests. Nur wenn alle bestehen, entsteht ein Release mit ISO und Update-Paket. Der Fernseher holt sich ausschließlich solche Releases:
 
-**Künftige Updates** gehen ohne Konsole: *Einstellungen → System & Updates → Nach Updates suchen* (braucht einmal einen GitHub-Token, einfügen über die Handy-Fernbedienung → System) **oder** Handy-Fernbedienung → System → „Update-Datei hochladen“ (die ZIP von GitHub).
+- **Hinweis:** 5 Minuten nach dem Einschalten und dann alle 6 Stunden wird nachgesehen. Ist etwas Neues da, erscheint ein Hinweis am Fernseher.
+- **Automatisch:** nachts zwischen 3 und 5 Uhr, aber nur wenn kein Video läuft und 30 Minuten nichts bedient wurde. Danach startet der Laptop neu. Abschaltbar unter *Einstellungen → System & Updates → Automatisch*.
+- **Per Knopf:** *Einstellungen → System & Updates → Nach Updates suchen → Jetzt aktualisieren*, auf dem Handy unter *System*, oder im Terminal `lichtung update`.
+- **Sicherheit:** Das Paket wird vor dem Einspielen mit seiner Prüfsumme verglichen. Stimmt sie nicht, bricht das Update ab.
+- **Ohne Internet am TV:** `lichtung-tv.tar.gz` aus dem Release am Handy laden und unter Handy-Fernbedienung → System → „Update-Datei hochladen“ einspielen.
 
 Das Update dauert 10–25 Minuten (Brave, KDE Connect, Moonlight usw. werden geladen) und braucht ca. 2–3 GB Platz.
 
@@ -41,7 +48,7 @@ GitHub baut bei jeder Änderung automatisch eine fertige **lichtung-tv.iso**: of
 6. **Sicherheitsabfrage:** „Änderungen auf die Festplatten schreiben?“ → **Ja**. Ab dann löscht er die interne Festplatte!
 7. Nach 20–40 Minuten startet der Laptop von selbst neu: Lichtung-Bootbildschirm → Einrichtungsassistent.
 
-**Zugangsdaten:** Benutzer `root` und `chris`, Passwort jeweils **123456**. Das reicht für ein Gerät im Wohnzimmer, weil von außen kein Login möglich ist (kein SSH installiert). Ändern kannst du es mit `passwd` auf der Konsole.
+**Zugangsdaten:** Benutzer `root` und `admin`, Passwort jeweils **123456**. Das ist bei jeder Lichtung-ISO gleich. Von außen ist kein Login möglich (kein SSH installiert). Wer den Laptop anderen zugänglich macht, sollte die Passwörter nach der Installation ändern: als root `passwd` und `passwd admin`.
 
 **Wenn etwas schiefgeht:** Das Protokoll der Lichtung-Installation liegt unter `/var/log/lichtung-install.log`. Notfalls `bash /root/lichtung-tv/install.sh` als root erneut ausführen.
 
@@ -77,7 +84,7 @@ Die Abschnitte 1–3 beschreiben den manuellen Weg ohne ISO.
 | Rechnername | `lichtung` |
 | Domain | leer lassen |
 | **Root-Passwort** | Ein Passwort ausdenken und **merken**. Brauchst du gleich. |
-| Neuer Benutzer | z. B. `chris` mit eigenem Passwort (das ist dein Admin-Zugang für später) |
+| Neuer Benutzer | z. B. `admin` mit eigenem Passwort (das ist dein Admin-Zugang für später) |
 | Partitionierung | „Geführt – vollständige Festplatte verwenden“ → „Alle Dateien auf eine Partition“ → bestätigen |
 | Paketmanager-Spiegel | Deutschland → deb.debian.org |
 | **Softwareauswahl** | **Alles abwählen außer** „SSH-Server“ und „Standard-Systemwerkzeuge“. **Kein** Desktop, **kein** GNOME! |
@@ -107,9 +114,9 @@ Am Laptop als **root** anmelden (Benutzername `root`, dein Root-Passwort).
 1. Am Laptop die IP herausfinden: `ip -4 addr | grep inet`
 2. In der Windows-Eingabeaufforderung:
    ```
-   scp lichtung-tv.tar.gz chris@192.168.x.x:/home/chris/
+   scp lichtung-tv.tar.gz admin@192.168.x.x:/home/admin/
    ```
-3. Am Laptop: `cp /home/chris/lichtung-tv.tar.gz /root/`
+3. Am Laptop: `cp /home/admin/lichtung-tv.tar.gz /root/`
 
 ### Installer starten
 ```bash
@@ -201,7 +208,7 @@ Nach dem Lichtung-Bootbildschirm erscheint ein Assistent mit 9 Schritten: **Desi
 
 **Terminal**: Strg+Alt+T (oder Kachel/Knopf „Terminal“). Befehl `lichtung` zeigt ein Menü: Status, btop, Programme suchen/installieren, Logs, Neustart, Update. Root für `apt`: `su -`.
 
-**Konsole ohne Oberfläche**: Strg+Alt+F2 → `root`/`chris`. Zurück: Strg+Alt+F1.
+**Konsole ohne Oberfläche**: Strg+Alt+F2 → `root`/`admin` (ältere Installationen: dein eigener Benutzer). Zurück: Strg+Alt+F1.
 
 | Problem | Lösung |
 |---|---|

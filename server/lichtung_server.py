@@ -638,6 +638,47 @@ REC_DIR = os.path.join(DATA_DIR, "aufnahmen")
 REC = system.Recorder(REC_DIR, lambda: CONFIG, lambda: save_config(), extras.mediathek_row, lambda t, **d: broadcast(t, **d), log)
 
 
+def update_due(now_ts, cfg, state, last_try_day, newer):
+    """Entscheidet, ob JETZT automatisch aktualisiert wird (eigene Funktion, damit
+    sie sich testen lässt). Bedingungen: Automatik an, ein neueres Release ist da,
+    es ist zwischen 3 und 5 Uhr, heute noch nicht versucht, niemand schaut fern
+    und seit 30 Minuten wurde nichts bedient."""
+    lt = time.localtime(now_ts)
+    if not cfg.get("autoUpdate", True) or not newer:
+        return False
+    if not (3 <= lt.tm_hour < 5) or last_try_day == time.strftime("%Y-%m-%d", lt):
+        return False
+    playing = state.get("playing") and now_ts - state.get("playingAt", 0) < 90
+    return not playing and now_ts - state.get("lastInput", now_ts) > 30 * 60
+
+
+def update_watcher():
+    """Sucht 5 Minuten nach dem Start und dann alle 6 Stunden nach einem neuen
+    getesteten Release. Meldet es einmal am Fernseher und spielt es nachts
+    automatisch ein (das Einspielen selbst macht lichtung-admin als root)."""
+    time.sleep(300)
+    last_check, announced, last_try_day = 0, "", ""
+    while True:
+        now = time.time()
+        if now - last_check > 6 * 3600 or (3 <= time.localtime(now).tm_hour < 5 and now - last_check > 1800):
+            res = UPDATER.check()
+            last_check = now
+            if res.get("ok") and res.get("newer") and res.get("latest") != announced:
+                announced = res["latest"]
+                broadcast("update", latest=res["latest"], message=res.get("message", ""))
+        newer = (UPDATER.last_check or {}).get("newer", False)
+        if update_due(now, CONFIG["general"], STATE, last_try_day, newer):
+            last_try_day = time.strftime("%Y-%m-%d")
+            if not system.media_playing():
+                log("Automatisches Update auf %s" % UPDATER.last_check.get("latest"))
+                res = UPDATER.from_github()
+                if res.get("ok"):
+                    broadcast("updating")
+                else:
+                    log("Automatisches Update fehlgeschlagen: %s" % res.get("error"))
+        time.sleep(60)
+
+
 def idle_watcher():
     """Bildschirmschoner, wenn lange nichts passiert ist und kein Video läuft.
     Zusätzlich 'Auto-Aus': nach X Stunden ohne Eingabe Bildschirm aus oder ganz aus."""
@@ -946,7 +987,8 @@ class Handler(BaseHTTPRequestHandler):
             stamp = time.strftime("%Y-%m-%d")
             return self.send_bytes(system.backup_zip(DATA_DIR), "application/zip", "lichtung-sicherung-%s.zip" % stamp)
         if path == "/api/update/status":
-            return self.send_json({"installed": UPDATER.installed(), "status": UPDATER.status(), "token": bool(UPDATER.token())})
+            return self.send_json({"installed": UPDATER.installed(), "status": UPDATER.status(), "token": bool(UPDATER.token()),
+                                   "auto": CONFIG["general"].get("autoUpdate", True), "last": UPDATER.last_check})
         if path == "/api/boot":
             rc, menu = system.admin("grub-menu-status", timeout=5)
             rc2, ply = system.admin("plymouth-status", timeout=5)
@@ -1169,7 +1211,7 @@ class Handler(BaseHTTPRequestHandler):
                            "braveScale", "braveProfiles", "ytZoom", "ytCinema", "ytQuality", "normalize", "webZoom",
                            "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle",
                            "autoOffHours", "autoOffAction", "bigWeather", "showRecent", "quickbar", "searchEngine",
-                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats"}
+                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate"}
                 for k, v in body.items():
                     if k in allowed:
                         CONFIG["general"][k] = v
@@ -1598,6 +1640,7 @@ def main():
         threading.Thread(target=input_watcher, daemon=True).start()
     threading.Thread(target=idle_watcher, daemon=True).start()
     threading.Thread(target=sleep_watcher, daemon=True).start()
+    threading.Thread(target=update_watcher, daemon=True).start()
     EPG.start()
     SWAY.start_watch(lambda: broadcast("home", url=LAUNCHER_URL), lambda: CONFIG["general"].get("outputMode", "last"))
     KDEC.start_call_monitor()

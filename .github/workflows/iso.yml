@@ -1,5 +1,7 @@
-# Baut bei jeder Änderung automatisch eine fertige Installations-ISO
-# und stellt sie unter "Releases" zum Download bereit.
+# Baut bei jeder Änderung automatisch eine fertige Installations-ISO und das
+# Update-Paket und stellt beides unter "Releases" bereit. Ein Release entsteht
+# nur, wenn alle Tests bestehen. Installierte Fernseher holen sich das neueste
+# Release nachts automatisch (server/system.py → Updater, lichtung-admin update).
 name: ISO bauen
 
 on:
@@ -20,8 +22,22 @@ jobs:
       - name: Werkzeuge installieren
         run: sudo apt-get update && sudo apt-get install -y xorriso
 
+      - name: Release-Namen festlegen
+        run: |
+          TAG="iso-$(date -u +%Y%m%d-%H%M)"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "$TAG" > RELEASE
+
       - name: Tests (Hintergrunddienst)
         run: python3 tests/test_server.py
+
+      - name: Update-Paket bauen
+        run: |
+          mkdir -p build/pkg
+          cp -r install.sh README.md RELEASE web server system brave-extension defaults build/pkg/
+          tar czf build/lichtung-tv.tar.gz -C build/pkg .
+          ( cd build && sha256sum lichtung-tv.tar.gz > lichtung-tv.tar.gz.sha256 )
+          tar tzf build/lichtung-tv.tar.gz | grep -qx "./server/lichtung_server.py"
 
       - name: ISO aus offizieller Debian-13-ISO bauen
         run: bash iso/build-iso.sh
@@ -33,11 +49,14 @@ jobs:
             -extract /boot/grub/grub.cfg check-grub.cfg \
             -extract /isolinux/txt.cfg check-txt.cfg \
             -extract /preseed.cfg check-preseed.cfg \
-            -extract /lichtung/install.sh check-install.sh
+            -extract /lichtung/install.sh check-install.sh \
+            -extract /lichtung/RELEASE check-release
           grep -q "Lichtung TV installieren" check-grub.cfg
           grep -q "Lichtung TV installieren" check-txt.cfg
           grep -q "passwd/root-password password" check-preseed.cfg
           bash -n check-install.sh
+          grep -q "passwd/make-user boolean false" check-preseed.cfg
+          [ "$(cat check-release)" = "$TAG" ]
           xorriso -indev lichtung-tv.iso -report_el_torito plain 2>&1 | tee boot-report.txt
           grep -qi "efi\|uefi\|0xef" boot-report.txt
           echo "ISO in Ordnung."
@@ -46,7 +65,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="iso-$(date -u +%Y%m%d-%H%M)"
           gh release create "$TAG" build/lichtung-tv.iso build/lichtung-tv.iso.sha256 \
+            build/lichtung-tv.tar.gz build/lichtung-tv.tar.gz.sha256 \
             --title "Lichtung TV – ISO vom $(TZ=Europe/Berlin date +'%d.%m.%Y %H:%M')" \
-            --notes "Fertige Installations-ISO. Mit balenaEtcher auf einen USB-Stick schreiben, Laptop davon starten (F12), Eintrag **Lichtung TV installieren (automatisch)** wählen. Achtung: Die interne Festplatte wird gelöscht (eine Sicherheitsabfrage kommt vorher). Benutzer root und chris, Passwort 123456."
+            --notes "Fertige Installations-ISO. Mit balenaEtcher auf einen USB-Stick schreiben, Laptop davon starten (F12), Eintrag **Lichtung TV installieren (automatisch)** wählen. Achtung: Die interne Festplatte wird gelöscht (eine Sicherheitsabfrage kommt vorher). Benutzer root und admin, Passwort 123456. Bereits installierte Fernseher holen sich dieses Release nachts automatisch oder über Einstellungen → System & Updates."

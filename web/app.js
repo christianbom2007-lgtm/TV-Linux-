@@ -1069,6 +1069,7 @@ L.events(async (ev) => {
   else if (ev.type === 'quick') { goHome(); window.quickMenu?.(); }
   else if (ev.type === 'incoming') window.incomingLink?.(ev);
   else if (ev.type === 'updating') L.toast('Update wird eingespielt – der Fernseher startet gleich neu …', 15000);
+  else if (ev.type === 'update') L.toast('Update verfügbar (' + ev.latest + ') – Einstellungen → System & Updates', 8000);
   else if (ev.type === 'saver') { if (ev.on && S.view !== 'profiles') startSaver(); else if (!ev.on) stopSaver(); }
   else if (ev.type === 'config' || ev.type === 'continue' || ev.type === 'profile') {
     // Änderungen vom Handy sofort übernehmen (aber nicht mitten in einem Dialog)

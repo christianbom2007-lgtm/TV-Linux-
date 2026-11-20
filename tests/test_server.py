@@ -341,6 +341,96 @@ class TestVersion2(unittest.TestCase):
             self.assertEqual(req.status, 200)
 
 
+class TestUpdate(unittest.TestCase):
+    """Updates nur aus getesteten Releases, Prüfsumme, Nacht-Automatik."""
+
+    def setUp(self):
+        import hashlib
+        import http.server
+        self.tmp = tempfile.mkdtemp(prefix="lichtung-upd-")
+        self.pkg = b"\x1f\x8b-ein-test-paket"
+        with open(os.path.join(self.tmp, "lichtung-tv.tar.gz"), "wb") as f:
+            f.write(self.pkg)
+        with open(os.path.join(self.tmp, "lichtung-tv.tar.gz.sha256"), "w") as f:
+            f.write(hashlib.sha256(self.pkg).hexdigest() + "  lichtung-tv.tar.gz\n")
+        handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=self.tmp, **k)
+        http.server.SimpleHTTPRequestHandler.log_message = lambda *a: None
+        self.httpd = srv.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d/" % self.httpd.server_address[1]
+        self.app = tempfile.mkdtemp(prefix="lichtung-app-")
+        self.up = srv.system.Updater(self.tmp, self.app, log=lambda *a: None)
+        self.up.UPD_DIR = os.path.join(self.tmp, "upd")
+        self.rel = {"tag": "iso-20990101-0000", "title": "Test", "date": "2099-01-01T00:00:00Z",
+                    "package": base + "lichtung-tv.tar.gz", "sha256": base + "lichtung-tv.tar.gz.sha256"}
+        self.up.latest_release = lambda: dict(self.rel)
+        self.installed_with = []
+        self.up.install = lambda path: (self.installed_with.append(path), {"ok": True, "msg": "gestartet"})[1]
+
+    def tearDown(self):
+        self.httpd.shutdown()
+
+    def write_version(self, release):
+        with open(os.path.join(self.app, "VERSION"), "w") as f:
+            json.dump({"version": "2.0", "release": release, "commit": ""}, f)
+
+    def test_newer_compare(self):
+        U = srv.system.Updater
+        self.assertTrue(U.is_newer("iso-20261121-0300", "iso-20261120-1700"))
+        self.assertFalse(U.is_newer("iso-20261120-1700", "iso-20261120-1700"))
+        self.assertFalse(U.is_newer("iso-20261119-1700", "iso-20261120-1700"))   # nie zurück
+        self.assertTrue(U.is_newer("iso-20261120-1700", ""))                      # alte ISO ohne Release-Namen
+        self.assertFalse(U.is_newer("", "iso-20261120-1700"))
+
+    def test_check(self):
+        self.write_version("iso-20000101-0000")
+        c = self.up.check()
+        self.assertTrue(c["ok"] and c["newer"])
+        self.assertEqual(c["latest"], "iso-20990101-0000")
+        self.write_version("iso-20990101-0000")
+        self.assertFalse(self.up.check()["newer"])
+        self.rel["package"] = None                     # altes Release ohne Update-Paket
+        self.write_version("iso-20000101-0000")
+        c = self.up.check()
+        self.assertFalse(c["newer"])
+        self.assertIn("kein Update-Paket", c["hint"])
+
+    def test_download_and_checksum(self):
+        r = self.up.from_github()
+        self.assertTrue(r["ok"], r)
+        with open(self.installed_with[0], "rb") as f:
+            self.assertEqual(f.read(), self.pkg)
+        # Prüfsumme manipuliert → kein Einspielen
+        with open(os.path.join(self.tmp, "lichtung-tv.tar.gz.sha256"), "w") as f:
+            f.write("0" * 64 + "  lichtung-tv.tar.gz\n")
+        self.installed_with.clear()
+        r = self.up.from_github()
+        self.assertFalse(r["ok"])
+        self.assertIn("Prüfsumme", r["error"])
+        self.assertEqual(self.installed_with, [])
+
+    def test_auto_update_window(self):
+        night = time.mktime((2026, 11, 21, 3, 40, 0, 0, 0, -1))
+        day = time.mktime((2026, 11, 21, 15, 0, 0, 0, 0, -1))
+        idle = {"playing": False, "lastInput": night - 3600}
+        self.assertTrue(srv.update_due(night, {}, idle, "", True))
+        self.assertFalse(srv.update_due(day, {}, idle, "", True))                       # tagsüber nie
+        self.assertFalse(srv.update_due(night, {}, idle, "", False))                    # nichts Neues
+        self.assertFalse(srv.update_due(night, {"autoUpdate": False}, idle, "", True))  # abgeschaltet
+        self.assertFalse(srv.update_due(night, {}, idle, "2026-11-21", True))           # heute schon versucht
+        self.assertFalse(srv.update_due(night, {}, {"playing": True, "playingAt": night, "lastInput": night - 3600}, "", True))
+        self.assertFalse(srv.update_due(night, {}, {"playing": False, "lastInput": night - 60}, "", True))
+
+    def test_status_endpoint(self):
+        st, u = call("GET", "/api/update/status")
+        self.assertEqual(st, 200)
+        self.assertIn("auto", u)
+        self.assertIn("last", u)
+        self.assertEqual(call("POST", "/api/general", {"autoUpdate": False})[0], 200)
+        self.assertFalse(call("GET", "/api/update/status")[1]["auto"])
+        call("POST", "/api/general", {"autoUpdate": True})
+
+
 if __name__ == "__main__":
     import urllib.parse  # noqa
     unittest.main(verbosity=2)

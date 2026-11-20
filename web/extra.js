@@ -467,21 +467,27 @@ window.renderExtraSection = function (sec, { add, head, body, g }) {
       head('System & Updates', 'Version, Updates, Sicherung, Systeminfo und Neustart.');
       const upd = h('div', {}, h('div', { class: 'lead' }, 'Lade …'));
       add(field('Updates', upd));
+      add(field('Automatisch', toggle(g.autoUpdate !== false, (v) => saveGeneral({ autoUpdate: v })), 'Nachts zwischen 3 und 5 Uhr, nur wenn nichts läuft und 30 Min. nichts bedient wurde'));
       api('/api/update/status').then((u) => {
         upd.innerHTML = '';
-        upd.append(h('div', { class: 'lead', style: { textTransform: 'none', margin: 0 } }, `Installiert: ${u.installed.version || '?'} ${u.installed.commit ? '(' + u.installed.commit.slice(0, 7) + ')' : ''} · Letztes Update: ${u.status || '–'}`));
-        const res = h('div', { class: 'lead', style: { textTransform: 'none' } }, u.token ? 'GitHub-Zugang ist hinterlegt.' : 'Privates Repo: Zugang (Token) über die Handy-Fernbedienung → System hinterlegen – oder Paket per Handy hochladen.');
+        const inst = u.installed || {};
+        const ver = inst.release || ((inst.version || '?') + (inst.commit ? ' (' + inst.commit.slice(0, 7) + ')' : ''));
+        upd.append(h('div', { class: 'lead', style: { textTransform: 'none', margin: 0 } }, `Installiert: ${ver} · Letztes Update: ${u.status || '–'}`));
+        const last = u.last || {};
+        const res = h('div', { class: 'lead', style: { textTransform: 'none' } },
+          last.newer ? `Neue Version verfügbar: ${last.latest}` : 'Updates kommen nur aus getesteten GitHub-Releases.');
+        const runBtn = h('button', { class: 'btn primary upd', hidden: !last.newer, 'data-nav': true, onclick: () => confirmBox('Update jetzt einspielen? Der Fernseher startet danach neu.', async () => {
+          L.toast('Update wird geladen …', 8000);
+          const r = await api('/api/update/run', 'POST', {}).catch((e) => ({ ok: false, error: e.message }));
+          L.toast(r.ok ? 'Update läuft – dauert einige Minuten' : 'Fehler: ' + (r.error || r.msg), 8000);
+        }) }, 'Jetzt aktualisieren');
         upd.append(res, h('div', { class: 'btns' },
           h('button', { class: 'btn', 'data-nav': true, onclick: async () => {
             res.textContent = 'Prüfe GitHub …';
             const c = await api('/api/update/check', 'POST', {}).catch((e) => ({ ok: false, error: e.message }));
-            res.textContent = c.ok ? (c.newer ? `Neu: ${c.message} (${c.latest})` : 'Du bist auf dem neuesten Stand.') : `${c.error}. ${c.hint || ''}`;
-            if (c.ok && c.newer) upd.querySelector('.btn.upd').hidden = false;
-          } }, 'Nach Updates suchen'),
-          h('button', { class: 'btn primary upd', hidden: true, 'data-nav': true, onclick: () => confirmBox('Update jetzt einspielen? Der Fernseher startet danach neu.', async () => {
-            const r = await api('/api/update/run', 'POST', {}).catch((e) => ({ ok: false, error: e.message }));
-            L.toast(r.ok ? 'Update läuft – dauert einige Minuten' : 'Fehler: ' + (r.error || r.msg), 8000);
-          }) }, 'Update einspielen')));
+            res.textContent = c.ok ? (c.newer ? `Neue Version verfügbar: ${c.latest}` : (c.hint || 'Du bist auf dem neuesten Stand ✓')) : `${c.error}. ${c.hint || ''}`;
+            runBtn.hidden = !(c.ok && c.newer);
+          } }, 'Nach Updates suchen'), runBtn));
       });
       const si = h('div', { class: 'menu-list' }, h('div', { class: 'lead' }, 'Lade …'));
       add(field('Systeminfo', si));

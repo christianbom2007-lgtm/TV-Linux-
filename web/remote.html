@@ -199,8 +199,8 @@
     <div class="row"><button class="btn p" id="upd-check">Nach Updates suchen</button><button class="btn" id="upd-run" hidden>Jetzt einspielen</button></div>
     <p class="hint" id="upd-state">…</p>
     <div class="row"><label class="btn">Update-Datei hochladen (.zip)<input type="file" accept=".zip,.gz,.tgz" id="upd-file" hidden></label></div>
-    <p class="hint">Privates Repo ohne Token: auf GitHub „Code → Download ZIP“ am Handy, dann hier hochladen. Der Fernseher spielt es ein und startet neu.</p>
-    <div class="label">GitHub-Zugang (optional)</div>
+    <p class="hint">Updates kommen aus getesteten GitHub-Releases, nachts auch automatisch. Ohne Internet am TV: im Release die Datei lichtung-tv.tar.gz am Handy laden und hier hochladen.</p>
+    <div class="label">GitHub-Zugang (nur für private Repos)</div>
     <div class="row"><input class="inp grow" id="gh-token" type="password" placeholder="Token einfügen (nur Lesen)"><button class="btn" id="gh-save">Speichern</button></div>
     <p class="hint">Dann reicht künftig „Nach Updates suchen“ am Fernseher. Token: GitHub → Settings → Developer settings → Fine-grained token → nur dieses Repo, „Contents: Read“.</p>
   </section>
@@ -323,12 +323,15 @@
   };
   async function loadSys() {
     const u = await api('/api/update/status').catch(() => null);
-    if (u) $('#upd-state').textContent = `Installiert: ${u.installed.version || '?'} ${u.installed.commit ? '(' + u.installed.commit.slice(0, 7) + ')' : ''} · Letztes Update: ${u.status || '–'} · GitHub-Zugang: ${u.token ? 'ja' : 'nein'}`;
+    if (!u) return;
+    const i = u.installed || {}, last = u.last || {};
+    $('#upd-state').textContent = `Installiert: ${i.release || (i.version || '?') + (i.commit ? ' (' + i.commit.slice(0, 7) + ')' : '')} · Letztes Update: ${u.status || '–'} · Automatisch: ${u.auto === false ? 'aus' : 'nachts'}` + (last.newer ? ` · Neu: ${last.latest}` : '');
+    $('#upd-run').hidden = !last.newer;
   }
   $('#upd-check').onclick = async () => {
     $('#upd-state').textContent = 'Prüfe …';
     const c = await api('/api/update/check', 'POST', {}).catch((e) => ({ ok: false, error: e.message }));
-    $('#upd-state').textContent = c.ok ? (c.newer ? `Neu: ${c.message} (${c.latest})` : 'Neuester Stand ✓') : `${c.error}. ${c.hint || ''}`;
+    $('#upd-state').textContent = c.ok ? (c.newer ? `Neue Version: ${c.latest}` : (c.hint || 'Neuester Stand ✓')) : `${c.error}. ${c.hint || ''}`;
     $('#upd-run').hidden = !(c.ok && c.newer);
   };
   $('#upd-run').onclick = async () => { if (!confirm('Update einspielen? Der Fernseher startet danach neu.')) return; const r = await api('/api/update/run', 'POST', {}).catch((e) => ({ error: e.message })); toast(r.ok ? 'Update läuft …' : r.error || r.msg); };

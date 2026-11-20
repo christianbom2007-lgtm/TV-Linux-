@@ -25,6 +25,7 @@ import configparser
 import glob
 import html
 import io
+import hashlib
 import json
 import os
 import re
@@ -827,6 +828,7 @@ class Updater:
         self.app_dir = app_dir
         self.log = log
         self.token_path = os.path.join(data_dir, "github-token")
+        self.last_check = {}
 
     def installed(self):
         try:
@@ -860,23 +862,41 @@ class Updater:
             h["Authorization"] = "Bearer " + self.token()
         return urllib.request.Request(url, headers=h)
 
+    def latest_release(self):
+        """Neuestes Release auf GitHub. Releases entstehen nur, wenn alle Tests
+        bestanden haben (siehe .github/workflows/iso.yml) – ungetestete
+        Zwischenstände auf main kommen so nie auf den Fernseher."""
+        with urllib.request.urlopen(self._req("https://api.github.com/repos/%s/releases/latest" % self.REPO), timeout=15) as r:
+            rel = json.loads(r.read().decode())
+        assets = {a.get("name"): a.get("browser_download_url") for a in rel.get("assets", [])}
+        return {"tag": rel.get("tag_name", ""), "title": rel.get("name") or rel.get("tag_name", ""),
+                "date": rel.get("published_at", ""), "package": assets.get("lichtung-tv.tar.gz"),
+                "sha256": assets.get("lichtung-tv.tar.gz.sha256")}
+
+    @staticmethod
+    def is_newer(tag, installed_release):
+        """Release-Namen sind iso-JJJJMMTT-HHMM, also nach Zeit sortierbar.
+        Ohne gespeichertes Release (Installation von einer alten ISO) gilt
+        jedes Release als neu, damit der Laptop einmal auf Stand kommt."""
+        if not tag:
+            return False
+        if not installed_release:
+            return True
+        return tag > installed_release
+
     def check(self):
-        """Neuester Stand auf GitHub (Commit auf main)."""
+        """Gibt es ein neueres getestetes Release als das installierte?"""
         try:
-            with urllib.request.urlopen(self._req("https://api.github.com/repos/%s/commits/main" % self.REPO), timeout=10) as r:
-                c = json.loads(r.read().decode())
-            sha = c.get("sha", "")
-            msg = (c.get("commit") or {}).get("message", "").splitlines()[0][:100]
-            date = ((c.get("commit") or {}).get("committer") or {}).get("date", "")
-            ver = self.installed()
-            inst = ver.get("commit", "")
-            if inst:
-                newer = bool(sha) and not sha.startswith(inst)
-            else:   # per ZIP installiert (ohne Commit): nach Datum vergleichen
-                newer = bool(date) and date > (ver.get("installedISO") or "")
-            return {"ok": True, "latest": sha[:7], "message": msg, "date": date, "installed": inst[:7], "newer": newer}
+            rel = self.latest_release()
+            inst = self.installed().get("release", "")
+            res = {"ok": True, "latest": rel["tag"], "message": rel["title"], "date": rel["date"],
+                   "installed": inst, "newer": self.is_newer(rel["tag"], inst) and bool(rel["package"])}
+            if not rel["package"]:
+                res["hint"] = "Dieses Release enthält noch kein Update-Paket."
+            self.last_check = dict(res, time=time.time())
+            return res
         except urllib.error.HTTPError as e:
-            hint = "Repo ist privat – unter Updates einen GitHub-Zugang (Token) hinterlegen oder das Paket per Handy hochladen." if e.code in (401, 403, 404) else ""
+            hint = "Repo nicht erreichbar oder privat – GitHub-Zugang (Token) hinterlegen oder Paket per Handy hochladen." if e.code in (401, 403, 404) else ""
             return {"ok": False, "error": "GitHub antwortet %d" % e.code, "hint": hint}
         except Exception as e:
             return {"ok": False, "error": "Kein Internet? %s" % str(e)[:80]}
@@ -888,12 +908,34 @@ class Updater:
         except OSError:
             pass
 
+    def _download(self, url, path):
+        with urllib.request.urlopen(self._req(url), timeout=300) as r, open(path, "wb") as f:
+            shutil.copyfileobj(r, f)
+
     def from_github(self):
+        """Neuestes Release laden, Prüfsumme kontrollieren, einspielen."""
         self._prepare_dir()
-        path = os.path.join(self.UPD_DIR, "lichtung-github.tar.gz")
         try:
-            with urllib.request.urlopen(self._req("https://api.github.com/repos/%s/tarball/main" % self.REPO), timeout=120) as r, open(path, "wb") as f:
-                shutil.copyfileobj(r, f)
+            rel = self.latest_release()
+        except Exception as e:
+            return {"ok": False, "error": "GitHub nicht erreichbar: %s" % str(e)[:100]}
+        if not rel["package"]:
+            return {"ok": False, "error": "Das neueste Release hat kein Update-Paket"}
+        path = os.path.join(self.UPD_DIR, "lichtung-%s.tar.gz" % re.sub(r"[^\w.-]", "", rel["tag"]))
+        try:
+            self._download(rel["package"], path)
+            if rel["sha256"]:
+                sums = os.path.join(self.UPD_DIR, "lichtung.sha256")
+                self._download(rel["sha256"], sums)
+                with open(sums) as f:
+                    expected = f.read().split()[0].lower()
+                h = hashlib.sha256()
+                with open(path, "rb") as f:
+                    for block in iter(lambda: f.read(1 << 20), b""):
+                        h.update(block)
+                if h.hexdigest() != expected:
+                    os.remove(path)
+                    return {"ok": False, "error": "Prüfsumme stimmt nicht – Update abgebrochen"}
         except Exception as e:
             return {"ok": False, "error": "Download fehlgeschlagen: %s" % str(e)[:100]}
         return self.install(path)

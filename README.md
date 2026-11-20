@@ -1,5 +1,11 @@
 # Lichtung TV – Installationsanleitung
 
+> **Vibe-coded – ehrlich gesagt:** Dieses Projekt ist ein privates Bastelprojekt. Der Code ist größtenteils mit KI (Claude) entstanden: Ich habe beschrieben, was ich will, getestet und Fehler zurückgemeldet. Es gibt automatische Tests, und jede ISO wird erst nach bestandenen Tests veröffentlicht. Trotzdem ist das kein geprüftes Profi-Produkt.
+>
+> - **Benutzung auf eigene Gefahr.** Bei der Installation wird die Festplatte komplett gelöscht. Standard-Passwort ist `123456`, bitte nach der Installation ändern.
+> - **Fehler gefunden oder Idee?** Gern unter [Issues](https://github.com/christianbom2007-lgtm/TV-Linux-/issues) melden („New issue“ → „Fehler melden“). Ich passe es an, wenn ich dazu komme. Installierte Fernseher bekommen die Korrektur dann automatisch per Update.
+> - **Am hilfreichsten:** Laptop-Modell, was du gemacht hast, was passiert ist und gern ein Foto vom Bildschirm oder die Datei `/var/log/lichtung-update.log` bzw. `/var/log/lichtung-install.log`.
+
 Dein alter Lenovo-Laptop wird zum Fernseh-Gerät: Er startet ohne Anmeldung direkt in eine Oberfläche im Lichtung-Stil, mit Kacheln für YouTube, Brave, Live-TV, Mediatheken, Musikbox, Ambiente, Programme und beliebige eigene Websites.
 
 > **Achtung:** Bei der Erst-Installation wird die Festplatte des Laptops **komplett gelöscht**. Ein **Update** (Abschnitt U) löscht nichts.

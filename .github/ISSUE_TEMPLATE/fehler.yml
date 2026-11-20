@@ -1,0 +1,32 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+labels: [fehler]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Melden! Lichtung TV ist ein vibe-coded Bastelprojekt. Ich schaue es mir an, wenn ich dazu komme.
+        Bitte keine Passwörter oder WLAN-Daten in Fotos oder Protokollen zeigen.
+  - type: input
+    id: geraet
+    attributes:
+      label: Laptop-Modell
+      placeholder: z. B. Lenovo IdeaPad 5 14ALC05
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Einstellungen → System & Updates → „Installiert“ (oder Name der ISO)
+      placeholder: z. B. iso-20261120-1603
+  - type: textarea
+    id: was
+    attributes:
+      label: Was hast du gemacht und was ist passiert?
+      placeholder: Schritte, Fehlermeldung, was du stattdessen erwartet hättest
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Protokoll oder Foto (optional)
+      description: /var/log/lichtung-install.log oder /var/log/lichtung-update.log, oder ein Foto vom Bildschirm

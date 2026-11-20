@@ -340,6 +340,14 @@ class TestVersion2(unittest.TestCase):
             req = urllib.request.urlopen(BASE + f, timeout=5)
             self.assertEqual(req.status, 200)
 
+    def test_sway_exec_keeps_commas(self):
+        # Regression: sway trennt Befehle an Kommas – die Brave-Adresse ging verloren
+        line = srv.system.Sway.exec_line(["brave-browser", "--enable-features=A,B,C", "https://www.ardmediathek.de/"])
+        self.assertEqual(line, "'brave-browser' '--enable-features=A,B,C' 'https://www.ardmediathek.de/'")
+        # außerhalb von Anführungszeichen darf kein Komma stehen
+        outside = "".join(part for i, part in enumerate(line.split("'")) if i % 2 == 0)
+        self.assertNotIn(",", outside)
+
 
 class TestUpdate(unittest.TestCase):
     """Updates nur aus getesteten Releases, Prüfsumme, Nacht-Automatik."""

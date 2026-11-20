@@ -114,8 +114,17 @@ class Sway:
 
     def exec(self, args):
         """Programm innerhalb von sway starten (bekommt dort Bild und Ton)."""
-        line = " ".join(shlex.quote(a) for a in args)
+        line = self.exec_line(args)
         return self.msg("exec", line)
+
+    @staticmethod
+    def exec_line(args):
+        """Befehlszeile für sways exec. WICHTIG: Jedes Argument wird in einfache
+        Anführungszeichen gesetzt. sway trennt Befehle sonst an jedem Komma –
+        aus "--enable-features=A,B,C ... URL" wurde so "--enable-features=A"
+        und der Rest (inklusive der Adresse) ging verloren: Brave öffnete nur
+        einen leeren Tab. In Anführungszeichen lässt sway Kommas in Ruhe."""
+        return " ".join("'" + str(a).replace("'", "'\\''") + "'" for a in args)
 
     def windows(self):
         """Alle Fenster: [{app_id, name, ws, focused}]"""

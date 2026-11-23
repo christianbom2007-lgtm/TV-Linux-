@@ -335,6 +335,7 @@ def audio_sinks():
             sinks.append({"id": o["id"], "name": props.get("node.description") or props.get("node.name"),
                           "node": props.get("node.name") or "",
                           "hdmi": "hdmi" in (props.get("node.name") or "").lower(),
+                          "usb": ".usb-" in (props.get("node.name") or "").lower(),
                           "virtual": (props.get("node.name") or "").startswith("lichtung_"),
                           "default": props.get("node.name") == default_name})
     return {"sinks": sinks}

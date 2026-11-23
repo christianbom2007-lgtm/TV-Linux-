@@ -869,7 +869,7 @@ function renderSection(keepFocus) {
       break;
     }
     case 'audio': {
-      head('Ton', 'Klang und wohin der Ton geht. „Automatisch“ nimmt den Monitor (und die Musikanlage daran), sobald HDMI steckt – sonst den Laptop.');
+      head('Ton', 'Klang und wohin der Ton geht. „Automatisch“: Musikanlage per USB zuerst, dann der Monitor per HDMI, sonst der Laptop.');
       const box = h('div', { class: 'menu-list', style: { maxWidth: 'calc(80*var(--u))' } }, h('div', { class: 'lead' }, 'Lade …'));
       const klangBox = h('div');
       add(klangBox, h('div', { class: 'lead', style: { marginTop: 'calc(2*var(--u))' } }, 'Einzelner Ausgang'), box);
@@ -881,7 +881,7 @@ function renderSection(keepFocus) {
           field('Klang', segmented([['aus', 'Aus'], ...(a.presets || []).map((p) => [p.id, p.title])], st.klang || 'aus', (v) => setK({ klang: v }, 'Klang: ' + (((a.presets || []).find((p) => p.id === v) || {}).title || 'Aus'))),
             '„Warm“ nimmt kleinen Monitor-Lautsprechern das Blecherne, „Sprache klar“ hilft bei Nachrichten und Filmen'),
           field('Ausgabe', segmented([['auto', 'Automatisch'], ['beide', 'Laptop + Fernseher'], ['einzeln', 'Einzeln']], st.output || 'auto', (v) => setK({ output: v }, v === 'auto' ? 'Automatisch (HDMI zuerst)' : v === 'beide' ? 'Beide Lautsprecher' : 'Einzelner Ausgang')),
-            '„Automatisch“: Musikanlage am Monitor wird sofort genommen, Laptop bleibt still. Bei „Beide“ kann der Fernseher minimal nachhallen'));
+            '„Automatisch“: USB-Musikanlage oder Monitor wird sofort genommen, Laptop bleibt still. Bei „Beide“ kann der Fernseher minimal nachhallen'));
         klangBox.append(h('div', { class: 'btns', style: { margin: 'calc(1.6*var(--u)) 0' } },
           h('button', { class: 'btn primary', 'data-nav': true, onclick: () => audioWizard() }, st.speakerSink ? 'Ton-Assistent erneut starten' : 'Ton-Assistent: Laptop-Lautsprecher einrichten'),
           h('button', { class: 'btn', 'data-nav': true, onclick: async () => { await api('/api/audio/repair', 'POST', {}); L.toast('Ton wird repariert …', 5000); } }, 'Ton reparieren'),
@@ -893,7 +893,7 @@ function renderSection(keepFocus) {
         real.forEach((sk) => {
           const on = st.output === 'einzeln' ? st.sink === sk.node : st.output === 'auto' ? (a.target ? a.target === sk.node : sk.default) : (!st.klang || st.klang === 'aus') && st.output !== 'beide' && sk.default;
           box.append(h('button', { 'data-nav': true, onclick: async () => { await api('/api/audio', 'POST', { id: sk.id }); L.toast('Ton über ' + sk.name); renderSection(true); } },
-            h('span', {}, sk.name.replace(/Headphones|Kopfhörer/i, 'Laptop (Lautsprecher/Kopfhörer)')), h('span', { class: 'k' }, (on ? 'aktiv ✓ ' : '') + (sk.hdmi ? 'HDMI' : ''))));
+            h('span', {}, sk.name.replace(/Headphones|Kopfhörer/i, 'Laptop (Lautsprecher/Kopfhörer)')), h('span', { class: 'k' }, (on ? 'aktiv ✓ ' : '') + (sk.hdmi ? 'HDMI' : sk.usb ? 'USB' : ''))));
         });
         if (S.view === 'settings' && !$('#s-body').contains(Nav.current)) return;
         const f = klangBox.querySelector('[data-nav]') || box.firstElementChild;

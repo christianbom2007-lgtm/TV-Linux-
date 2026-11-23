@@ -710,6 +710,12 @@ class TestAudio(unittest.TestCase):
         self.assertTrue(self.audio.hdmi_changed())
         self.audio.apply()
         self.assertEqual(self.audio.target, self.HDMI["name"])
+        usb = {"name": "alsa_output.usb-Denon_DAC-00.analog-stereo", "description": "USB Audio DAC", "hdmi": False, "usb": True, "available": True, "ports": []}
+        self.current = [self.HDMI, self.HDMI2, self.HP, usb]        # Musikanlage per USB eingesteckt
+        self.assertNotIn(usb["name"], [x["name"] for x in self.A.laptop_candidates(self.current)])
+        self.assertTrue(self.audio.hdmi_changed())
+        self.audio.apply()
+        self.assertEqual(self.audio.target, usb["name"])            # USB hat Vorrang vor HDMI
 
     def test_apply_full(self):
         self.store.update({"rev": 2, "output": "beide"})

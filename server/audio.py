@@ -77,6 +77,7 @@ def sinks():
                 act = next((p for p in ports if p.get("name") == s.get("active_port")), {})
                 res.append({"name": s.get("name", ""), "description": s.get("description", ""),
                             "hdmi": "hdmi" in s.get("name", "").lower(),
+                            "usb": ".usb-" in s.get("name", "").lower() or "usb" in s.get("description", "").lower(),
                             "available": act.get("availability", "unknown") != "not available",
                             "ports": [p.get("name") for p in ports]})
             return res
@@ -86,7 +87,7 @@ def sinks():
     for line in (out or "").splitlines() if rc == 0 else []:
         parts = line.split("\t")
         if len(parts) > 1:
-            res.append({"name": parts[1], "description": parts[1], "hdmi": "hdmi" in parts[1].lower(),
+            res.append({"name": parts[1], "description": parts[1], "hdmi": "hdmi" in parts[1].lower(), "usb": ".usb-" in parts[1].lower(),
                         "available": True, "ports": []})
     return res
 
@@ -97,7 +98,7 @@ def hardware(lst):
 
 def laptop_candidates(lst):
     """Mögliche Laptop-Ausgänge, beste zuerst: Speaker > Headphones > analog > sonstige."""
-    hw = [s for s in hardware(lst) if not s["hdmi"]]
+    hw = [s for s in hardware(lst) if not s["hdmi"] and not s.get("usb")]
     rank = lambda s: (0 if "speaker" in s["name"].lower() else 1 if "headphone" in s["name"].lower() else 2 if "analog" in s["name"].lower() else 3)
     return sorted(hw, key=rank)
 
@@ -110,6 +111,16 @@ def tv_sinks(lst):
 def hdmi_connected(lst):
     """Nur HDMI-Ausgänge, an denen wirklich etwas hängt (Monitor an, Kabel steckt)."""
     return [s for s in hardware(lst) if s["hdmi"] and s["available"]]
+
+
+def usb_sinks(lst):
+    """USB-Tongeräte (z. B. Musikanlage mit USB-Eingang, USB-Soundkarte)."""
+    return [s for s in hardware(lst) if s.get("usb")]
+
+
+def plugged(lst):
+    """Was gerade steckt – ändert sich das, schaltet "Automatisch" um."""
+    return [x["name"] for x in usb_sinks(lst)] + [x["name"] for x in hdmi_connected(lst)]
 
 
 def wait_sinks(seconds=12, name=None):
@@ -290,13 +301,16 @@ class Audio:
         laptop = s["speakerSink"] if s["speakerSink"] in names else (laptop_candidates(lst)[0]["name"] if laptop_candidates(lst) else "")
         tvs = [x["name"] for x in tv_sinks(lst)]
         target = ""
-        self.last_hdmi = [x["name"] for x in hdmi_connected(lst)]
+        self.last_hdmi = plugged(lst)
         if s["output"] == "auto":
-            # Automatisch: Steckt HDMI (Monitor mit Musikanlage), geht der Ton NUR dorthin.
-            # Ist der Monitor aus / kein Kabel, übernimmt der Laptop.
+            # Automatisch: Musikanlage per USB > Monitor per HDMI > Laptop. Immer nur EIN Ausgang.
             unload_combine()
-            if self.last_hdmi:
-                target = self.last_hdmi[0]
+            usb, hd = usb_sinks(lst), hdmi_connected(lst)
+            if usb:
+                target = usb[0]["name"]
+                rep.append("Automatisch: Ton über USB (%s)" % (usb[0]["description"] or "Musikanlage"))
+            elif hd:
+                target = hd[0]["name"]
                 rep.append("Automatisch: Ton über Monitor/Musikanlage (HDMI)")
             elif laptop:
                 target = laptop
@@ -334,7 +348,7 @@ class Audio:
         """Hat sich seit dem letzten Anwenden geändert, ob HDMI verbunden ist?"""
         if self.last_hdmi is None or self.wizard:
             return False
-        return [x["name"] for x in hdmi_connected(sinks())] != self.last_hdmi
+        return plugged(sinks()) != self.last_hdmi
 
     def watchdog(self):
         """Läuft im Hintergrund: Klangregelung abgestürzt → neu starten.

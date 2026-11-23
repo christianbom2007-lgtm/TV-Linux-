@@ -52,4 +52,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   return true; // Antwort kommt asynchron
 });
 
+// Nach einem Lichtung-Update: neuere Erweiterung auf der Platte → sofort neu laden (ohne Brave-Neustart)
+async function selfUpdate() {
+  try {
+    const m = await (await fetch(chrome.runtime.getURL('manifest.json') + '?t=' + Date.now(), { cache: 'no-store' })).json();
+    if (m.version && m.version !== chrome.runtime.getManifest().version) chrome.runtime.reload();
+  } catch (_) {}
+}
+setInterval(selfUpdate, 60000);
+
 config();

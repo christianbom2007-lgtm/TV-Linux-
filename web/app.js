@@ -224,12 +224,15 @@ const TILE_ICONS = {
   'app:terminal': '<rect x="2.5" y="3.5" width="19" height="17" rx="2.2"/><path d="M6.5 9l3.5 3-3.5 3M12.5 15.5h5"/>',
   app: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/>',
 };
+// Einheitliche Symbole: jede Kachel bekommt denselben Glas-Ring. Lichtung-Kacheln mit Strich-Symbol,
+// Websites mit ihrem Anfangsbuchstaben (gleich groß, gleiche Farbe – nicht bunt durcheinander).
+const uniformIcons = () => (S.state?.general?.tileIcons || 'einheitlich') === 'einheitlich';
 function tileIcon(t) {
   const u = t.url || '';
   const svg = TILE_ICONS[u] || (u.startsWith('app:') ? TILE_ICONS.app : '');
-  if (!svg) return null;
-  const el = h('div', { class: 'logo ico' });
-  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`;
+  const el = h('div', { class: 'logo ring' });
+  if (svg) el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`;
+  else el.append(h('span', { class: 'mono' }, (t.title || hostOf(u) || '?').trim().charAt(0).toUpperCase()));
   return el;
 }
 
@@ -239,14 +242,14 @@ function tileArt(t) {
   const bg = t.color ? `linear-gradient(135deg, ${t.color}, color-mix(in srgb, ${t.color} 35%, #060807))`
     : `linear-gradient(135deg, hsl(${hue} 32% 26%), hsl(${(hue + 25) % 360} 28% 11%))`;
   const art = h('div', { class: 'art gen', style: { background: bg } });
-  if (t.logo) art.append(h('img', { class: 'logo', src: t.logo, alt: '', onload: function () { if (this.naturalWidth && this.naturalWidth < 96) this.classList.add('lowres'); }, onerror: function () { this.remove(); } }));
-  else { const ic = tileIcon(t); if (ic) art.append(ic); }
+  if (t.logo && !uniformIcons()) art.append(h('img', { class: 'logo', src: t.logo, alt: '', onload: function () { if (this.naturalWidth && this.naturalWidth < 96) this.classList.add('lowres'); }, onerror: function () { this.remove(); } }));
+  else art.append(tileIcon(t));
   return art;
 }
 
 const OPEN_BADGE = { kino: 'KINO', tab: '', lichtung: '' };
 function tileEl(t, i) {
-  const el = h('button', { class: `tile size-${t.size || 'normal'}${!t.image && (t.logo || TILE_ICONS[t.url] || (t.url || '').startsWith('app:')) ? ' has-logo' : ''}`, 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
+  const el = h('button', { class: `tile size-${t.size || 'normal'}${!t.image ? ' has-logo' : ''}`, 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
     tileArt(t), h('div', { class: 'shade' }),
     h('div', { class: 'num' }, L.pad(i + 1)),
     OPEN_BADGE[t.open] ? h('div', { class: 'tv' }, OPEN_BADGE[t.open]) : null,

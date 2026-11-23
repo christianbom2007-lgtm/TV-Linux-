@@ -635,8 +635,13 @@ body.theme-matrix .focused.btn, body.theme-matrix .qbtn.focused, body.theme-matr
 /* ---------- Große Logos auf allen Kacheln ---------- */
 .tile.has-logo .art .logo { top: 40%; max-width: 62%; max-height: 56%; transition: transform .5s var(--ease), filter .4s; }
 .tile.has-logo .art img.logo.lowres { width: 34%; max-width: none; max-height: 48%; image-rendering: auto; border-radius: 22%; }
-.tile.has-logo .art .logo.ico { width: 40%; height: 52%; color: #fff; opacity: .92; filter: drop-shadow(0 calc(.8 * var(--u)) calc(2 * var(--u)) rgba(0,0,0,.45)); }
-.tile.has-logo .art .logo.ico svg { width: 100%; height: 100%; }
+.tile.has-logo .art .logo.ring { width: calc(8.4 * var(--u)); height: calc(8.4 * var(--u)); max-width: none; max-height: none; top: 38%; border-radius: 50%;
+  display: grid; place-items: center; color: #fff; background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.38);
+  backdrop-filter: blur(10px); box-shadow: 0 calc(.8 * var(--u)) calc(2.4 * var(--u)) rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18); }
+.tile.has-logo .art .logo.ring svg { width: 52%; height: 52%; }
+.tile.has-logo .art .logo.ring .mono { font-family: var(--serif); font-weight: 400; font-size: calc(4.2 * var(--u)); line-height: 1; transform: translateY(-4%); }
+.tile.size-gross.has-logo .art .logo.ring { width: calc(10.5 * var(--u)); height: calc(10.5 * var(--u)); }
+.focused.tile.has-logo .art .logo.ring { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .tile.size-gross.has-logo .art .logo { max-width: 52%; }
 .focused.tile.has-logo .art .logo, .tile.has-logo:hover .art .logo { transform: translate(-50%, -50%) scale(1.08); }
 .tile.has-logo .name b { font-size: calc(2.4 * var(--u)); }

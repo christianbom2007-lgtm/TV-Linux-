@@ -131,7 +131,15 @@
     const a = document.activeElement;
     return !!a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
   };
-  const popupOpen = () => !!document.querySelector('tp-yt-iron-dropdown:not([aria-hidden="true"]):not([style*="display: none"]), tp-yt-paper-dialog[opened], ytd-miniplayer[active], dialog[open]');
+  // Ist WIRKLICH ein Menü/Dialog sichtbar? (YouTube hält viele versteckte Menüs dauerhaft im Code –
+  // nur die zählen, die gerade sichtbar auf dem Bildschirm sind)
+  const shown = (el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) return false;
+    const cs = getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05;
+  };
+  const popupOpen = () => [...document.querySelectorAll('tp-yt-iron-dropdown, tp-yt-paper-dialog, dialog[open], [role="dialog"], [role="listbox"]')].some(shown);
 
   function goBack() {
     if (history.length > 1 && sessionStorage.getItem('lichtungStart') !== location.href) history.back();
@@ -151,7 +159,10 @@
     const k = e.key;
     const isBack = k === 'Escape' || k === 'BrowserBack' || k === 'GoBack' || (k === 'Backspace' && !typingNow());
     if (!isBack || document.fullscreenElement) return;
-    if (k === 'Escape' && (typingNow() || popupOpen())) return;   // erst Suche/Menüs schließen lassen
+    if (k === 'Escape' && popupOpen()) return;                    // erst Menüs schließen lassen
+    if (k === 'Escape' && typingNow()) {                          // im Suchfeld: nur raus aus dem Feld
+      e.preventDefault(); e.stopImmediatePropagation(); document.activeElement.blur(); return;
+    }
     e.preventDefault(); e.stopImmediatePropagation();
     bar.show();
     if (e.repeat) return;
@@ -159,6 +170,7 @@
     clearTimeout(holdT);
     holdT = setTimeout(() => { holdT = null; held = true; if (isYT && ytId()) goMini(); }, 650);
   }, true);
+  addEventListener('mouseup', (e) => { if (e.button === 3) { e.preventDefault(); goBack(); } }, true);
   addEventListener('keyup', (e) => {
     const k = e.key;
     if (!(k === 'Escape' || k === 'BrowserBack' || k === 'GoBack' || k === 'Backspace')) return;

@@ -316,6 +316,8 @@ window.renderExtraSection = function (sec, { add, head, body, g }) {
           onclick: async () => { await saveGeneral({ theme: id, package: '' }); renderSection(true); L.toast('Designart: ' + name); } },
           h('b', { style: { fontFamily: c[4] } }, name), h('span', {}, sub), h('i', {}, h('em', { style: { background: c[2] } }), h('em', { style: { background: c[2], outline: '2px solid ' + c[3] } }), h('em', { style: { background: c[2] } }))))),
         'Ändert Schriften, Formen und Farben'));
+      add(field('Kachel-Symbole', seg([['einheitlich', 'Einheitlich'], ['logos', 'Original-Logos']], g.tileIcons || 'einheitlich', async (v) => { await saveGeneral({ tileIcons: v }); renderHome?.(); }),
+        'Einheitlich: alle Kacheln mit gleichem Symbol-Ring (Websites mit Anfangsbuchstaben) · Original: Logos der Websites'));
       const choices = h('div', { class: 'bg-choices' });
       const customs = g.customBackgrounds || [];
       [...L.BACKGROUNDS.map((b) => ({ id: b.id, name: b.name })), ...customs.map((u, i) => ({ id: u, name: 'Foto ' + (i + 1) }))].forEach((b) => {

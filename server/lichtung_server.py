@@ -1353,7 +1353,7 @@ class Handler(BaseHTTPRequestHandler):
                            "profileAutoSeconds", "background", "volumeStep", "customBackgrounds",
                            "motion", "weatherFx", "aurora", "epgUrl", "setupDone", "mediathekOn", "theme",
                            "braveScale", "braveProfiles", "ytZoom", "ytCinema", "ytQuality", "normalize", "webZoom",
-                           "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle",
+                           "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle", "tileIcons",
                            "autoOffHours", "autoOffAction", "bigWeather", "showRecent", "quickbar", "searchEngine",
                            "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate", "pauseOnHome"}
                 for k, v in body.items():

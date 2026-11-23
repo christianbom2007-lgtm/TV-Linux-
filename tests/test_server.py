@@ -264,6 +264,42 @@ class TestExtras(unittest.TestCase):
         self.assertEqual(call("GET", "/api/links")[1]["recent"][0]["label"], "YouTube")
 
 
+class TestMiniSaver(unittest.TestCase):
+    """Mini-Fenster, Bildschirmschoner-Grund, stille Eingabegeräte (23.11.2026)."""
+
+    def test_quiet_devices(self):
+        self.assertFalse(srv.counts_as_input("HDA Intel PCH HDMI/DP,pcm=3"))
+        self.assertFalse(srv.counts_as_input("Video Bus"))
+        self.assertFalse(srv.counts_as_input("DENON USB Audio Consumer Control"))
+        self.assertTrue(srv.counts_as_input("AT Translated Set 2 keyboard"))
+        self.assertTrue(srv.counts_as_input("2.4G Wireless Remote"))
+
+    def test_mini_flow(self):
+        old = srv.go_home
+        srv.go_home = lambda: None
+        try:
+            self.assertEqual(call("POST", "/api/mini", {"action": "open", "yt": ""})[0], 400)
+            r = call("POST", "/api/mini", {"action": "open", "yt": "dQw4w9WgXcQ<x>", "time": 83.6, "title": "Test"})[1]
+            self.assertEqual(r["mini"], {"yt": "dQw4w9WgXcQx", "time": 83, "title": "Test"})
+            call("POST", "/api/mini", {"action": "time", "time": 120})
+            self.assertEqual(call("GET", "/api/state")[1]["mini"]["time"], 120)
+            g = {"screensaverMinutes": 5}
+            self.assertIn("Mini", srv.saver_block_reason(g, 9999, False))
+            call("POST", "/api/mini", {"action": "close"})
+            self.assertIsNone(call("GET", "/api/state")[1]["mini"])
+        finally:
+            srv.go_home = old
+
+    def test_saver_reason(self):
+        g = {"screensaverMinutes": 5}
+        self.assertIn("Video", srv.saver_block_reason(g, 9999, True))
+        self.assertIn("Startet in", srv.saver_block_reason(g, 60, False))
+        self.assertIn("Aus", srv.saver_block_reason({"screensaverMinutes": 0}, 9999, False))
+        st, r = call("GET", "/api/saver/status")
+        self.assertEqual(st, 200)
+        self.assertIn("why", r)
+
+
 class TestVersion2(unittest.TestCase):
     """Neue Funktionen aus Version 2 (Brave, sway, Systeminfo, Sicherung …)."""
     def setUp(self):

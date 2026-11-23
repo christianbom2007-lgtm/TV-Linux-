@@ -374,11 +374,15 @@ window.renderExtraSection = function (sec, { add, head, body, g }) {
     /* ---------- Bildschirmschoner ---------- */
     case 'saver': {
       head('Bildschirmschoner', 'Erscheint, wenn eine Weile nichts passiert und nichts läuft – auch über Brave. Jede Taste bringt dich genau dahin zurück, wo du warst.');
-      add(field('Stil', seg([['landschaft', 'Landschaft & Uhr'], ['analog', 'Analoge Uhr'], ['minimal', 'Minimal (schwarz)'], ['fotos', 'Eigene Fotos']], g.saverStyle || 'landschaft', (v) => saveGeneral({ saverStyle: v })),
+      add(field('Stil', seg([['aurora', 'Aurora (neu)'], ['landschaft', 'Landschaft & Uhr'], ['analog', 'Analoge Uhr'], ['minimal', 'Minimal (schwarz)'], ['fotos', 'Eigene Fotos']], g.saverStyle || 'aurora', (v) => saveGeneral({ saverStyle: v })),
         'Minimal schont OLED-Fernseher · Fotos: über die Handy-Fernbedienung hochladen'));
       add(field('Starten nach', stepper(Number(g.screensaverMinutes ?? 5), { min: 0, max: 60, step: 1, fmt: (v) => v ? v + ' Min.' : 'Aus' }, (v) => saveGeneral({ screensaverMinutes: v }))));
       add(field('Auch über Brave & Programmen', toggle(g.screensaverOnPages !== false, (v) => saveGeneral({ screensaverOnPages: v })), 'Nie, während ein Video läuft'));
       add(h('div', { class: 'btns' }, h('button', { class: 'btn', 'data-nav': true, onclick: () => startSaver() }, 'Jetzt anzeigen')));
+      const why = h('div', { class: 'lead', style: { textTransform: 'none', marginTop: 'calc(1.6*var(--u))' } }, 'Status: …');
+      add(why);
+      const upd = () => api('/api/saver/status').then((r) => { why.textContent = 'Status: ' + (r.why || '–'); }).catch(() => {});
+      upd(); const iv = setInterval(() => { if (!why.isConnected) return clearInterval(iv); upd(); }, 3000);
       break;
     }
     /* ---------- Handy & Verbindung ---------- */

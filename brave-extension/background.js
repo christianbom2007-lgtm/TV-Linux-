@@ -43,6 +43,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case 'config': return reply(await config());
       case 'progress': return reply(await post('/api/continue', msg.data));
       case 'activity': return reply(await post('/api/activity', msg.data));
+      case 'mini': return reply(await post('/api/mini', msg.data));
+      case 'home': return reply(await post('/api/home', {}));
       case 'lookup': return reply(await fetch(BASE + '/api/continue/lookup?url=' + encodeURIComponent(msg.url)).then((r) => r.json()).catch(() => ({})));
       default: return reply({});
     }

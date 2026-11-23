@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lichtung TV",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Verbindet Brave mit Lichtung TV: Weiterschauen, YouTube-Kinomodus, Auto-HD, gleiche Lautstärke, TV-Zoom.",
   "icons": { "48": "icon48.png", "128": "icon128.png" },
   "permissions": ["tabs", "storage"],

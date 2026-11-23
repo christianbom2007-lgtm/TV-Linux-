@@ -35,7 +35,14 @@
     }
     return best;
   }
-  const playing = () => videos().some((v) => !v.paused && !v.ended && v.readyState > 2);
+  // Zählt nur, was man wirklich schaut: hörbar und groß genug. Stumme Vorschau-Videos
+  // (YouTube spielt auf der Startseite kleine Clips ab) blockieren sonst den Bildschirmschoner.
+  const watched = (v) => {
+    if (v.paused || v.ended || v.readyState <= 2 || v.muted || v.volume === 0) return false;
+    const r = v.getBoundingClientRect();
+    return r.width * r.height > innerWidth * innerHeight * 0.06 || document.pictureInPictureElement === v;
+  };
+  const playing = () => videos().some(watched);
 
   function meta() {
     const ms = navigator.mediaSession && navigator.mediaSession.metadata;
@@ -107,6 +114,92 @@
     } catch (_) { done.add(v); }
   }
   document.addEventListener('playing', (e) => { if (e.target instanceof HTMLVideoElement) normalize(e.target); }, true);
+
+  /* ---------- Zurück-Taste, Startseite, Mini-Fenster ----------
+   * Im Kino-Fenster (ohne Adressleiste) gibt es keinen Zurück-Knopf. Darum:
+   *   Zurück-Taste der Fernbedienung (Esc), Browser-Zurück, Rücktaste → eine Seite zurück;
+   *   ist man schon auf der ersten Seite → zurück zur Lichtung-Startseite.
+   *   Zurück GEDRÜCKT HALTEN bei einem YouTube-Video → Mini-Fenster auf der Startseite.
+   * Dazu eine kleine Leiste oben links (erscheint bei Maus/Tasten, verschwindet wieder). */
+  const isYT = /(^|\.)youtube\.com$/.test(location.hostname);
+  const appWindow = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  const ytId = () => {
+    const u = new URL(location.href);
+    return u.searchParams.get('v') || (u.pathname.match(/^\/(?:shorts|live)\/([\w-]{6,})/) || [])[1] || '';
+  };
+  const typingNow = () => {
+    const a = document.activeElement;
+    return !!a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  };
+  const popupOpen = () => !!document.querySelector('tp-yt-iron-dropdown:not([aria-hidden="true"]):not([style*="display: none"]), tp-yt-paper-dialog[opened], ytd-miniplayer[active], dialog[open]');
+
+  function goBack() {
+    if (history.length > 1 && sessionStorage.getItem('lichtungStart') !== location.href) history.back();
+    else send({ type: 'home' });
+  }
+  function goMini() {
+    const id = ytId(), v = mainVideo();
+    if (!isYT || !id) { toast('Mini-Fenster geht bei YouTube-Videos'); return; }
+    const time = v ? v.currentTime : 0;
+    if (v) v.pause();
+    send({ type: 'mini', data: { action: 'open', yt: id, time, title: meta().title } });
+  }
+  if (!sessionStorage.getItem('lichtungStart')) sessionStorage.setItem('lichtungStart', location.href);
+
+  let holdT = null, held = false;
+  addEventListener('keydown', (e) => {
+    const k = e.key;
+    const isBack = k === 'Escape' || k === 'BrowserBack' || k === 'GoBack' || (k === 'Backspace' && !typingNow());
+    if (!isBack || document.fullscreenElement) return;
+    if (k === 'Escape' && (typingNow() || popupOpen())) return;   // erst Suche/Menüs schließen lassen
+    e.preventDefault(); e.stopImmediatePropagation();
+    bar.show();
+    if (e.repeat) return;
+    held = false;
+    clearTimeout(holdT);
+    holdT = setTimeout(() => { holdT = null; held = true; if (isYT && ytId()) goMini(); }, 650);
+  }, true);
+  addEventListener('keyup', (e) => {
+    const k = e.key;
+    if (!(k === 'Escape' || k === 'BrowserBack' || k === 'GoBack' || k === 'Backspace')) return;
+    if (holdT) { clearTimeout(holdT); holdT = null; if (!held) goBack(); e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+
+  // Leiste oben links
+  const bar = (() => {
+    const hostEl = document.createElement('lichtung-bar');
+    const r = hostEl.attachShadow({ mode: 'closed' });
+    r.innerHTML = `<style>
+      .b{position:fixed;left:2.4vh;top:2.4vh;z-index:2147483647;display:flex;gap:1vh;opacity:0;transform:translateY(-140%);transition:opacity .25s,transform .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+      .b.s{opacity:1;transform:none;pointer-events:auto}
+      button{all:unset;cursor:pointer;display:flex;align-items:center;gap:.9vh;padding:1.2vh 2vh;border-radius:999px;background:rgba(10,12,11,.82);backdrop-filter:blur(14px);border:1px solid rgba(239,233,223,.16);color:#efe9df;font:600 1.8vh system-ui,sans-serif;box-shadow:0 1vh 3vh rgba(0,0,0,.35)}
+      button:hover,button:focus-visible{background:rgba(239,233,223,.92);color:#0b0d0c}
+      svg{width:2.2vh;height:2.2vh;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+      .h{align-self:center;color:rgba(239,233,223,.6);font:1.5vh system-ui,sans-serif;text-shadow:0 1px 4px #000;margin-left:.6vh}
+    </style><div class="b">
+      <button class="back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Zurück</button>
+      <button class="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Start</button>
+      <button class="mini"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1" fill="currentColor"/></svg>Mini-Fenster</button>
+      <span class="h">Zurück-Taste halten = Mini-Fenster</span></div>`;
+    const b = r.querySelector('.b');
+    r.querySelector('.back').onclick = goBack;
+    r.querySelector('.home').onclick = () => send({ type: 'home' });
+    r.querySelector('.mini').onclick = goMini;
+    let t;
+    return {
+      show() {
+        if (!(isYT || appWindow)) return;
+        if (!hostEl.isConnected) (document.body || document.documentElement).appendChild(hostEl);
+        const mini = isYT && !!ytId();
+        r.querySelector('.mini').style.display = mini ? '' : 'none';
+        r.querySelector('.h').style.display = mini ? '' : 'none';
+        b.classList.add('s');
+        clearTimeout(t); t = setTimeout(() => b.classList.remove('s'), 3500);
+      },
+    };
+  })();
+  let lastMove = 0;
+  addEventListener('mousemove', (e) => { if (e.clientY < innerHeight * 0.25 && Date.now() - lastMove > 400) { lastMove = Date.now(); bar.show(); } }, { passive: true });
 
   /* ---------- YouTube ---------- */
   function youtube() {

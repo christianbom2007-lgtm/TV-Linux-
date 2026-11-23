@@ -158,6 +158,9 @@ def save_config():
 
 
 CONFIG = load_config()
+# Einmalig (23.11.2026): neuer Bildschirmschoner "Aurora" als Stil
+if CONFIG.get("general", {}).get("saverRev", 0) < 1:
+    CONFIG.setdefault("general", {}).update({"saverStyle": "aurora", "saverRev": 1})
 save_config()
 
 # Welches Profil gerade aktiv ist (wird bei jedem Start neu gewählt)
@@ -169,7 +172,10 @@ STATE = {
     "sleep": None,             # Schlaf-Timer: {"until": Zeitpunkt, "action": "pause"|"screen"|"poweroff", "warned": bool}
     "screenOff": False,
     "lastKey": None,           # zuletzt gedrückte Taste (für "Systeminfo" / Fehlersuche)
-    "saverReturn": None,       # Ebene, zu der nach dem Bildschirmschoner zurückgekehrt wird
+    "saverReturn": None,
+    "saverWhy": "",            # Klartext: warum der Bildschirmschoner (noch) nicht kommt
+    "wakeBy": "",              # welches Gerät zuletzt als Eingabe zählte
+    "mini": None,              # Mini-Fenster auf der Startseite (YouTube), sonst None       # Ebene, zu der nach dem Bildschirmschoner zurückgekehrt wird
     "playingAt": 0,
 }
 
@@ -512,6 +518,16 @@ def mouse(dx=0, dy=0, click=None, scroll=0):
     return True
 
 
+# Geräte, die Tasten-Ereignisse melden, ohne dass jemand etwas drückt
+# (Ton-/HDMI-Anschlüsse, USB-Verstärker wie Denon, Grafik-"Video Bus").
+# Sie dürfen den Bildschirmschoner nicht dauernd wegdrücken.
+QUIET_DEVICES = re.compile(r"(?i)hdmi|video bus|jack|headphone|headset|speaker|usb audio|\baudio\b|dac|denon|marantz|yamaha|onkyo|lid switch|sleep button|wmi hotkeys|pc speaker")
+
+
+def counts_as_input(dev_name):
+    return not QUIET_DEVICES.search(dev_name or "")
+
+
 def input_watcher():
     """Liest alle Eingabegeräte mit (ohne sie zu blockieren – Firefox bekommt
     die Tasten weiterhin). Neue Geräte (z. B. USB-Dongle der Fernbedienung)
@@ -551,7 +567,8 @@ def input_watcher():
                 devices.pop(dev.path, None)
                 continue
             for ev in events:
-                if ev.type in (E.EV_KEY, E.EV_REL):
+                if ev.type in (E.EV_KEY, E.EV_REL) and counts_as_input(dev.name):
+                    STATE["wakeBy"] = dev.name
                     wake()
                 if ev.type != E.EV_KEY:
                     continue
@@ -752,6 +769,26 @@ def update_watcher():
         time.sleep(60)
 
 
+def saver_block_reason(g, idle, playing):
+    """Klartext für die Einstellungen: Warum kommt der Bildschirmschoner (noch) nicht?"""
+    minutes = float(g.get("screensaverMinutes", 5) or 0)
+    if minutes <= 0:
+        return "Aus (Starten nach: Aus)"
+    if STATE["saver"]:
+        return "Läuft gerade"
+    if playing:
+        return "Wartet: In Brave läuft ein Video"
+    if STATE.get("mini"):
+        return "Wartet: Mini-Fenster läuft"
+    left = minutes * 60 - idle
+    if left > 0:
+        by = STATE.get("wakeBy") or ""
+        return "Startet in %d:%02d Min.%s" % (left // 60, left % 60, (" · letzte Eingabe: " + by) if by else "")
+    if system.media_playing():
+        return "Wartet: Ein Programm meldet „spielt gerade“"
+    return "Startet gleich"
+
+
 def idle_watcher():
     """Bildschirmschoner, wenn lange nichts passiert ist und kein Video läuft.
     Zusätzlich 'Auto-Aus': nach X Stunden ohne Eingabe Bildschirm aus oder ganz aus."""
@@ -761,8 +798,9 @@ def idle_watcher():
         idle = time.time() - STATE["lastInput"]
         playing = STATE["playing"] and time.time() - STATE.get("playingAt", 0) < 90
         minutes = float(g.get("screensaverMinutes", 5) or 0)
+        STATE["saverWhy"] = saver_block_reason(g, idle, playing)
         if minutes > 0 and not STATE["saver"] and idle > minutes * 60:
-            if not playing and not system.media_playing():
+            if not playing and not STATE.get("mini") and not system.media_playing():
                 ws = SWAY.focused_ws() if SWAY.available else 1
                 if ws in (None, 1) or g.get("screensaverOnPages", True):
                     if ws not in (None, 1):
@@ -990,6 +1028,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/state":
             return self.send_json(self.state_payload())
+        if path == "/api/saver/status":
+            return self.send_json({"why": STATE.get("saverWhy", ""), "wakeBy": STATE.get("wakeBy", ""),
+                                   "idle": int(time.time() - STATE["lastInput"])})
         if path == "/api/weather":
             return self.send_json(get_weather())
         if path == "/api/volume":
@@ -1163,6 +1204,7 @@ class Handler(BaseHTTPRequestHandler):
             "version": UPDATER.installed().get("version", "?"),
             "radio": RADIO.status(),
             "audioWizardPending": bool(CONFIG.get("audio", {}).get("wizardPending")),
+            "mini": STATE.get("mini"),
         }
 
     def sse(self):
@@ -1388,6 +1430,26 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
 
         # ----- Dinge ohne Konfigurationsänderung -----
+        if path == "/api/mini":
+            # Brave meldet: Video als Mini-Fenster auf der Startseite weiterlaufen lassen
+            act = body.get("action", "open")
+            if act == "open":
+                vid = re.sub(r"[^A-Za-z0-9_-]", "", str(body.get("yt", "")))[:16]
+                if not vid:
+                    return self.send_json({"error": "Nur YouTube-Videos gehen als Mini-Fenster"}, 400)
+                STATE["mini"] = {"yt": vid, "time": max(0, int(float(body.get("time") or 0))),
+                                 "title": str(body.get("title", ""))[:120]}
+                go_home()
+                broadcast("mini", **STATE["mini"])
+            elif act == "close":
+                STATE["mini"] = None
+                broadcast("mini", yt="")
+            elif act == "time" and STATE.get("mini"):
+                STATE["mini"]["time"] = max(0, int(float(body.get("time") or 0)))
+            return self.send_json({"ok": True, "mini": STATE["mini"]})
+        if path == "/api/home":
+            go_home()
+            return self.send_json({"ok": True})
         if path == "/api/activity":
             STATE["playing"] = bool(body.get("playing"))
             STATE["playingAt"] = time.time()
@@ -1911,10 +1973,12 @@ def media_cache_pass():
             changed = True
         for t in prof.get("tiles", []):
             url = t.get("url", "")
-            if t.get("image") or t.get("logo") or t.get("logoTried") or not url.startswith(("http://", "https://")):
+            tried = t.get("logoTried")
+            tried = 0 if tried is True else (tried or 0)          # alte Einträge: nochmal versuchen
+            if t.get("image") or t.get("logo") or time.time() - tried < 86400 or not url.startswith(("http://", "https://")):
                 continue
             t["logo"] = site_logo(url)
-            t["logoTried"] = True
+            t["logoTried"] = time.time()                          # ohne Erfolg: morgen nochmal
             changed = True
     return changed
 

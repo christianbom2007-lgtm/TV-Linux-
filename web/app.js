@@ -211,19 +211,42 @@ function renderWeather() {
     <span class="c">${L.esc(w.city)}<br>${L.weatherText(c.weather_code)}</span>${fc}`;
 }
 
+// Eigene, schlichte Symbole für Lichtung-Kacheln (Websites bekommen ihr echtes Logo automatisch)
+const TILE_ICONS = {
+  'lichtung:live': '<rect x="2.5" y="5" width="19" height="13" rx="2"/><path d="M8 21h8M12 18v3M9 2.5l3 2.5 3-2.5"/>',
+  'lichtung:mirror': '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2M2.5 9a6 6 0 0 1 0 6M21.5 9a6 6 0 0 0 0 6"/>',
+  'lichtung:apps': '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
+  'lichtung:music': '<path d="M9 18V5.5l11-2.5v12.5"/><circle cx="6.5" cy="18" r="2.7"/><circle cx="17.5" cy="15.5" r="2.7"/>',
+  'lichtung:ambient': '<path d="M12 21.5c-4 0-7-2.8-7-6.6 0-3.3 2.2-5.3 3.6-7.4.5 1.6 1.3 2.6 2.4 3.1C11 7 12.6 4.4 15 2.5c.3 3.4 4 5.8 4 11.4 0 4.6-3.1 7.6-7 7.6z"/><path d="M12 21.5c-1.7 0-3-1.3-3-3 0-2 1.5-3 3-4.8 1.5 1.8 3 2.8 3 4.8 0 1.7-1.3 3-3 3z"/>',
+  'lichtung:radio': '<rect x="2.5" y="8" width="19" height="13" rx="2.2"/><path d="M6 8l11-5.5"/><circle cx="15.5" cy="14.5" r="3"/><path d="M5.5 12.5h4M5.5 16.5h4"/>',
+  'lichtung:browser': '<circle cx="12" cy="12" r="9.5"/><path d="M15.8 8.2l-2.2 5.4-5.4 2.2 2.2-5.4z"/>',
+  'lichtung:doku': '<rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="M2.5 9h19M7 4l2.5 5M12.5 4l2.5 5M18 4l2.5 5"/><path d="M10 12.5v5l4.5-2.5z"/>',
+  'app:terminal': '<rect x="2.5" y="3.5" width="19" height="17" rx="2.2"/><path d="M6.5 9l3.5 3-3.5 3M12.5 15.5h5"/>',
+  app: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/>',
+};
+function tileIcon(t) {
+  const u = t.url || '';
+  const svg = TILE_ICONS[u] || (u.startsWith('app:') ? TILE_ICONS.app : '');
+  if (!svg) return null;
+  const el = h('div', { class: 'logo ico' });
+  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`;
+  return el;
+}
+
 function tileArt(t) {
   if (t.image) return h('div', { class: 'art', style: { backgroundImage: `url("${t.image}")` } });
   const hue = t.hue ?? 200;
   const bg = t.color ? `linear-gradient(135deg, ${t.color}, color-mix(in srgb, ${t.color} 35%, #060807))`
     : `linear-gradient(135deg, hsl(${hue} 32% 26%), hsl(${(hue + 25) % 360} 28% 11%))`;
   const art = h('div', { class: 'art gen', style: { background: bg } });
-  if (t.logo) art.append(h('img', { class: 'logo', src: t.logo, alt: '', onerror: function () { this.remove(); } }));
+  if (t.logo) art.append(h('img', { class: 'logo', src: t.logo, alt: '', onload: function () { if (this.naturalWidth && this.naturalWidth < 96) this.classList.add('lowres'); }, onerror: function () { this.remove(); } }));
+  else { const ic = tileIcon(t); if (ic) art.append(ic); }
   return art;
 }
 
 const OPEN_BADGE = { kino: 'KINO', tab: '', lichtung: '' };
 function tileEl(t, i) {
-  const el = h('button', { class: `tile size-${t.size || 'normal'}${t.logo && !t.image ? ' has-logo' : ''}`, 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
+  const el = h('button', { class: `tile size-${t.size || 'normal'}${!t.image && (t.logo || TILE_ICONS[t.url] || (t.url || '').startsWith('app:')) ? ' has-logo' : ''}`, 'data-nav': true, 'data-kind': 'tile', 'data-id': t.id },
     tileArt(t), h('div', { class: 'shade' }),
     h('div', { class: 'num' }, L.pad(i + 1)),
     OPEN_BADGE[t.open] ? h('div', { class: 'tv' }, OPEN_BADGE[t.open]) : null,
@@ -998,7 +1021,7 @@ function startSaver() {
   if (S.weather?.current) S.saverScene.setWeather(S.weather);
   S.saverScene.set(Object.assign(sceneOpts(g), { scale: 0.5 }));
   S.scene?.stop();
-  if (g.saverStyle === 'minimal') S.saverScene.stop();
+  if (g.saverStyle === 'minimal' || (g.saverStyle || 'aurora') === 'aurora') S.saverScene.stop();
   $('#saver').classList.add('active');
   renderSaver(true);
 }
@@ -1011,9 +1034,11 @@ function stopSaver() {
   return true;
 }
 function renderSaver(move) {
-  const d = new Date(), w = S.weather, style = S.state.general.saverStyle || 'landschaft';
+  const d = new Date(), w = S.weather, style = S.state.general.saverStyle || 'aurora';
   const el = $('#saver-content');
   $('#saver').dataset.style = style;
+  $('#saver').classList.toggle('night', d.getHours() >= 23 || d.getHours() < 6);
+  if (style === 'aurora') return renderAurora(d, w, el, move);
   let wx = '';
   if (w && w.current && style !== 'minimal') {
     const days = (w.daily?.time || []).slice(1, 4).map((t, i) => `<div>${new Date(t).toLocaleDateString('de-DE', { weekday: 'short' })}${L.weatherIcon(w.daily.weather_code[i + 1], 1)}<b>${Math.round(w.daily.temperature_2m_max[i + 1])}° / ${Math.round(w.daily.temperature_2m_min[i + 1])}°</b></div>`).join('');
@@ -1040,6 +1065,35 @@ function renderSaver(move) {
     el.style.left = (6 + Math.random() * 30) + 'vw';
     el.style.top = (12 + Math.random() * 30) + 'vh';
   }
+}
+
+/* Stil „Aurora“: wandernde Farbschleier, große Uhr mit Sekunden-Linie,
+   Wetter in Glas-Karten, „Zuletzt geschaut“ und ein Gruß. Das Gerüst wird
+   nur einmal pro Minute neu gebaut, jede Sekunde ändern sich nur Zahlen. */
+function renderAurora(d, w, el, move) {
+  const sec = d.getSeconds();
+  if (!el.querySelector('.au') || move || sec === 0) {
+    let wx = '';
+    if (w && w.current) {
+      const days = (w.daily?.time || []).slice(1, 4).map((t, i) => `<div class="au-day"><span>${new Date(t).toLocaleDateString('de-DE', { weekday: 'short' })}</span>${L.weatherIcon(w.daily.weather_code[i + 1], 1)}<b>${Math.round(w.daily.temperature_2m_max[i + 1])}°</b><small>${Math.round(w.daily.temperature_2m_min[i + 1])}°</small></div>`).join('');
+      wx = `<div class="au-wx"><div class="au-now">${L.weatherIcon(w.current.weather_code, w.current.is_day)}<b>${Math.round(w.current.temperature_2m)}°</b><span>${L.esc(L.weatherText(w.current.weather_code))}<small>${L.esc(w.city || '')}</small></span></div>${days}</div>`;
+    }
+    const c = (S.state.continue || [])[0];
+    const cw = c ? `<div class="au-cw">${c.image ? `<img src="${L.esc(c.image)}" alt="">` : ''}<div><small>Zuletzt geschaut</small><b>${L.esc(c.title || '')}</b>${c.duration ? `<i><em style="width:${Math.min(100, Math.round((c.time / c.duration) * 100))}%"></em></i>` : ''}</div></div>` : '';
+    const name = (typeof profile === 'function' && profile()?.name) || '';
+    el.innerHTML = `<div class="au">
+      <div class="au-greet">${L.esc(L.greeting(d).replace(/[.!]+$/, ''))}${name ? ', ' + L.esc(name) : ''}</div>
+      <div class="au-clock"><span class="hh">${L.pad(d.getHours())}</span><span class="colon">:</span><span class="mm">${L.pad(d.getMinutes())}</span></div>
+      <div class="au-sec"><i></i></div>
+      <div class="au-date">${L.esc(L.dateStr(d))}</div>
+      ${wx}${cw}</div>`;
+    if (move || sec === 0) {   // leicht wandern → kein Einbrennen
+      el.style.left = (5 + Math.random() * 8) + 'vw';
+      el.style.top = (8 + Math.random() * 10) + 'vh';
+    }
+  }
+  const bar = el.querySelector('.au-sec i');
+  if (bar) bar.style.transform = `scaleX(${(sec + 1) / 60})`;
 }
 
 /* ============================================================
@@ -1164,6 +1218,7 @@ L.events(async (ev) => {
   if (ev.type === 'volume') L.showVolume(ev);
   else if (ev.type === 'home') { $('#launching').classList.remove('show'); goHome(); }
   else if (ev.type === 'quick') { goHome(); window.quickMenu?.(); }
+  else if (ev.type === 'mini') window.miniWindow?.(ev);
   else if (ev.type === 'incoming') window.incomingLink?.(ev);
   else if (ev.type === 'updating') L.toast('Update wird eingespielt – der Fernseher startet gleich neu …', 15000);
   else if (ev.type === 'audiodone') {

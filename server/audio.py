@@ -38,7 +38,18 @@ PRESETS = {   # Vorverstärker, Bass (Hz, dB), Mitten (Hz, Güte, dB), Höhen (H
     "klar":    {"title": "Sprache klar", "pre": 0.85, "low": (150, -3.0), "mid": (2500, 1.0, 3.0), "high": (9000, 0.0)},
     "bass":    {"title": "Mehr Bass", "pre": 0.6, "low": (120, 8.0), "mid": (3000, 1.0, -2.0), "high": (10000, 1.0)},
 }
-DEFAULTS = {"klang": "warm", "output": "beide", "sink": "", "speakerSink": "", "strategy": ""}
+DEFAULTS = {"klang": "warm", "output": "auto", "sink": "", "speakerSink": "", "strategy": ""}
+AUDIO_REV = 2   # 2 = "Automatisch" eingeführt (Musikanlage am Monitor, 23.11.2026)
+
+
+def migrate(a):
+    """Alte Einstellungen einmalig auf "Automatisch" umstellen. True = geändert."""
+    if (a or {}).get("rev", 0) >= AUDIO_REV:
+        return False
+    a["output"], a["rev"] = "auto", AUDIO_REV
+    return True
+
+
 STRATEGIES = [
     ("mixer", "Lautsprecher im Mischpult freigeben"),
     ("noucm", "Andere Geräte-Erkennung (ohne UCM-Profile)"),
@@ -94,6 +105,11 @@ def laptop_candidates(lst):
 def tv_sinks(lst):
     hd = [s for s in hardware(lst) if s["hdmi"]]
     return [s for s in hd if s["available"]] or hd
+
+
+def hdmi_connected(lst):
+    """Nur HDMI-Ausgänge, an denen wirklich etwas hängt (Monitor an, Kabel steckt)."""
+    return [s for s in hardware(lst) if s["hdmi"] and s["available"]]
 
 
 def wait_sinks(seconds=12, name=None):
@@ -223,10 +239,15 @@ class Audio:
         self.eq_proc = None
         self.report = []                  # letzte Schritte (für die Fehlersuche)
         self.wizard = None                # laufender Ton-Assistent
+        self.target = ""                  # echter Ausgang, auf dem der Ton gerade landet
+        self.last_hdmi = None             # welche HDMI-Ausgänge beim letzten Anwenden verbunden waren
         self.tone = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "lichtung-testton.wav")
 
     def settings(self):
-        return dict(DEFAULTS, **(self.get() or {}))
+        raw = self.get() or {}
+        if migrate(raw):
+            self.save(raw)
+        return dict(DEFAULTS, **raw)
 
     # ---------- Klangregelung
     def eq_stop(self):
@@ -269,7 +290,18 @@ class Audio:
         laptop = s["speakerSink"] if s["speakerSink"] in names else (laptop_candidates(lst)[0]["name"] if laptop_candidates(lst) else "")
         tvs = [x["name"] for x in tv_sinks(lst)]
         target = ""
-        if s["output"] == "beide" and laptop and tvs:
+        self.last_hdmi = [x["name"] for x in hdmi_connected(lst)]
+        if s["output"] == "auto":
+            # Automatisch: Steckt HDMI (Monitor mit Musikanlage), geht der Ton NUR dorthin.
+            # Ist der Monitor aus / kein Kabel, übernimmt der Laptop.
+            unload_combine()
+            if self.last_hdmi:
+                target = self.last_hdmi[0]
+                rep.append("Automatisch: Ton über Monitor/Musikanlage (HDMI)")
+            elif laptop:
+                target = laptop
+                rep.append("Automatisch: kein HDMI – Ton über den Laptop")
+        elif s["output"] == "beide" and laptop and tvs:
             if load_combine([laptop] + tvs):
                 target = COMBINE
                 rep.append("Laptop + Fernseher aktiv")
@@ -294,17 +326,28 @@ class Audio:
                 run(["pactl", "set-sink-volume", x["name"], "100%"])
                 run(["pactl", "set-sink-mute", x["name"], "0"])
         rep.append("Standard-Ausgang: " + default)
+        self.target = target
         self.report = rep
         return {"ok": True, "report": rep}
 
+    def hdmi_changed(self):
+        """Hat sich seit dem letzten Anwenden geändert, ob HDMI verbunden ist?"""
+        if self.last_hdmi is None or self.wizard:
+            return False
+        return [x["name"] for x in hdmi_connected(sinks())] != self.last_hdmi
+
     def watchdog(self):
-        """Läuft im Hintergrund: Ist die Klangregelung abgestürzt, Ton direkt weiterleiten."""
+        """Läuft im Hintergrund: Klangregelung abgestürzt → neu starten.
+        Bei "Automatisch": Monitor/HDMI an- oder abgesteckt → Ton umschalten."""
         while True:
-            time.sleep(20)
+            time.sleep(5)
             s = self.settings()
             if s["klang"] in PRESETS and self.eq_proc and self.eq_proc.poll() is not None:
                 self.log("Klangregelung beendet – starte neu")
                 self.apply()
+            elif s["output"] == "auto" and self.hdmi_changed():
+                self.log("HDMI geändert – Ton wird umgeschaltet")
+                self.broadcast("audiodone", **self.apply())
 
     # ---------- Testton
     def make_tone(self):

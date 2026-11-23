@@ -695,14 +695,32 @@ class TestAudio(unittest.TestCase):
         self.assertEqual([s["name"] for s in self.A.laptop_candidates([self.HDMI, self.HP, self.SPK])], [self.HP["name"], self.SPK["name"]])
         self.assertEqual(self.A.tv_sinks([self.HDMI, self.HDMI2]), [self.HDMI])       # nur verbundenes HDMI
 
+    def test_auto_hdmi(self):
+        r = self.audio.apply()                                     # Standard: Automatisch → nur HDMI
+        self.assertTrue(r["ok"])
+        self.assertEqual(self.store.get("output"), "auto")         # alte Einstellung einmalig umgestellt
+        self.assertEqual(self.eq_target, self.HDMI["name"])        # verbundenes HDMI, nicht HDMI2
+        self.assertEqual(self.audio.target, self.HDMI["name"])
+        self.assertFalse(self.audio.hdmi_changed())
+        self.current = [dict(self.HDMI, available=False), self.HDMI2, self.HP]   # Monitor aus
+        self.assertTrue(self.audio.hdmi_changed())
+        self.audio.apply()
+        self.assertEqual(self.audio.target, self.HP["name"])       # Laptop übernimmt
+        self.current = [self.HDMI, self.HDMI2, self.HP]             # Monitor wieder an
+        self.assertTrue(self.audio.hdmi_changed())
+        self.audio.apply()
+        self.assertEqual(self.audio.target, self.HDMI["name"])
+
     def test_apply_full(self):
-        r = self.audio.apply()                                     # Standard: Warm + Laptop/Fernseher
+        self.store.update({"rev": 2, "output": "beide"})
+        r = self.audio.apply()                                     # Warm + Laptop/Fernseher
         self.assertTrue(r["ok"])
         self.assertEqual(self.combine_slaves, [self.HP["name"], self.HDMI["name"]])
         self.assertEqual(self.eq_target, self.A.COMBINE)
         self.assertEqual(self.defaults_set()[-1], self.A.EQ)
 
     def test_apply_fallbacks(self):
+        self.store.update({"rev": 2, "output": "beide"})
         self.eq_ok = False                                         # Klangregelung startet nicht
         self.audio.apply()
         self.assertEqual(self.defaults_set()[-1], self.A.COMBINE)

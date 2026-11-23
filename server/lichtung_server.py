@@ -341,7 +341,10 @@ def audio_sinks():
 
 
 def audio_settings():
-    return dict(audio.DEFAULTS, **CONFIG.setdefault("audio", {}))
+    a = CONFIG.setdefault("audio", {})
+    if audio.migrate(a):
+        save_config()
+    return dict(audio.DEFAULTS, **a)
 
 
 def _save_audio(a):
@@ -993,7 +996,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/audio":
             return self.send_json(dict(audio_sinks(), settings=audio_settings(),
                                        presets=[{"id": k, "title": v["title"]} for k, v in audio.PRESETS.items()],
-                                       report=AUDIO.report, eq=AUDIO.eq_running(), legacy=AUDIO.legacy_active()))
+                                       report=AUDIO.report, target=AUDIO.target, eq=AUDIO.eq_running(), legacy=AUDIO.legacy_active()))
         if path == "/api/mediathek":
             # Alle Reihen parallel laden (jede Reihe = eine Abfrage)
             rows = [r for r in CONFIG.get("mediathekRows", []) if r.get("on", True)]
@@ -1631,7 +1634,7 @@ class Handler(BaseHTTPRequestHandler):
             a = CONFIG.setdefault("audio", {})
             if body.get("klang") in list(audio.PRESETS) + ["aus"]:
                 a["klang"] = body["klang"]
-            if body.get("output") in ("beide", "einzeln"):
+            if body.get("output") in ("auto", "beide", "einzeln"):
                 a["output"] = body["output"]
             save_config()
             apply_audio_async()

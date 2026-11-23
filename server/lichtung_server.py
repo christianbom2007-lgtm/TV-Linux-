@@ -1355,7 +1355,7 @@ class Handler(BaseHTTPRequestHandler):
                            "braveScale", "braveProfiles", "ytZoom", "ytCinema", "ytQuality", "normalize", "webZoom",
                            "nightMode", "nightFrom", "nightTo", "nightTemp", "season", "seasonFx", "saverStyle", "tileIcons",
                            "autoOffHours", "autoOffAction", "bigWeather", "showRecent", "quickbar", "searchEngine",
-                           "package", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate", "pauseOnHome"}
+                           "package", "designAsked", "dimEvening", "outputMode", "webcamBg", "webcams", "showStats", "autoUpdate", "pauseOnHome"}
                 for k, v in body.items():
                     if k in allowed:
                         CONFIG["general"][k] = v

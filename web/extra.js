@@ -190,6 +190,7 @@ L.events((ev) => { if (ev.type === 'pause') L.toast('Anruf am Handy – alles pa
  * 3. Design-Pakete: Designart + Landschaft + Farbe + Stimmung mit einem Klick
  * ============================================================ */
 const PACKAGES = [
+  { id: 'klar', name: 'Klar', desc: 'Schlicht, ruhig, ohne Effekte', theme: 'klar', background: 'nacht', accent: '#ececec', motion: 'aus', aurora: false, saverStyle: 'aurora', dim: 0.55 },
   { id: 'klassik', name: 'Lichtung Klassik', desc: 'Serif, Bergnacht, warmes Gold', theme: 'lichtung', background: 'nacht', accent: '#c8a26b', motion: 'voll', aurora: false, saverStyle: 'landschaft' },
   { id: 'nordlicht', name: 'Nordlicht', desc: 'Tundra, Polarlicht, kühles Grün', theme: 'lichtung', background: 'tundra', accent: '#8fb3a0', motion: 'voll', aurora: true, saverStyle: 'landschaft' },
   { id: 'hafen', name: 'Hafenstadt', desc: 'Lichter am Wasser, Glas-Optik', theme: 'glas', background: 'stadt', accent: '#e9edf2', motion: 'voll', aurora: false, saverStyle: 'minimal' },
@@ -891,3 +892,27 @@ renderQuick = function () {
   row.insertBefore(quickBtn('Terminal', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>',
     () => launchApp('terminal', 'Terminal'), ['Programme', 'Terminal', 'Befehl „lichtung“ zeigt ein Menü: Status, Update, Programme installieren, Logs. btop = Systemüberwachung. Strg+Alt+T geht von überall.']), row.lastElementChild);
 };
+
+/* ============================================================
+ * Einmalige Frage nach dem Update (23.11.2026): neues schlichtes Design „Klar“
+ * → übernehmen und direkt anpassen, nur anpassen, oder alles so lassen.
+ * ============================================================ */
+(() => {
+  const wait = setInterval(() => {
+    if (typeof S === 'undefined' || !S.state || S.view !== 'home' || S.modals.length || S.saverOn) return;
+    clearInterval(wait);
+    const g = S.state.general;
+    if (!g.setupDone || g.designAsked) return;
+    const done = (m) => { m.close(); return api('/api/general', 'POST', { designAsked: 1 }).then((r) => { S.state.general = r; }); };
+    const klar = PACKAGES.find((p) => p.id === 'klar');
+    const m = openModal([
+      h('h3', {}, 'Neues Design: Klar'),
+      h('p', { class: 'note', style: { maxWidth: '60ch', lineHeight: 1.55, margin: '0 0 calc(2.4*var(--u))' } },
+        'Schlichter und ruhiger: einfarbiger Hintergrund, klare Schrift, keine Leucht-Effekte. Du kannst es übernehmen und danach direkt Farben, Hintergrund und Symbole anpassen.'),
+      h('div', { class: 'btns' },
+        h('button', { class: 'btn primary', 'data-nav': true, onclick: async () => { await done(m); await applyPackage(klar); openSettings('look'); L.toast('Design: Klar – jetzt nach Wunsch anpassen'); } }, 'Klar übernehmen & anpassen'),
+        h('button', { class: 'btn', 'data-nav': true, onclick: async () => { await done(m); openSettings('look'); } }, 'Nur anpassen'),
+        h('button', { class: 'btn', 'data-nav': true, onclick: () => done(m) }, 'So lassen')),
+    ]);
+  }, 1500);
+})();

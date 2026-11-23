@@ -646,3 +646,59 @@ body.theme-matrix .focused.btn, body.theme-matrix .qbtn.focused, body.theme-matr
 .focused.tile.has-logo .art .logo, .tile.has-logo:hover .art .logo { transform: translate(-50%, -50%) scale(1.08); }
 .tile.has-logo .name b { font-size: calc(2.4 * var(--u)); }
 .tile.has-logo .shade { background: linear-gradient(0deg, rgba(5,7,6,.85) 0%, rgba(5,7,6,0) 38%); }
+
+/* ==========================================================================
+   Designart „Klar“ – schlicht und ruhig
+   Keine Schreibschrift, keine gesperrten Großbuchstaben, keine Leuchteffekte,
+   kein Glas. Einfarbige Flächen, eine Schrift, klare Fokus-Markierung.
+   ========================================================================== */
+.tclock { display: none; }
+body.theme-klar { --accent: #ececec !important; --ink: #ececec; --ink-2: rgba(236,236,236,.72); --ink-3: rgba(236,236,236,.46); --line: rgba(255,255,255,.08);
+  --glass: #1a1b1d; --glass-2: #18191b; --radius: calc(1 * var(--u)); --serif: var(--sans); --mono: var(--sans); font-family: var(--sans); background: #101112; }
+body.theme-klar #bg { display: none; }
+body.theme-klar #home { grid-template-columns: 1fr; }
+body.theme-klar .vclock { display: none; }
+body.theme-klar .tclock { display: block; font-size: calc(3.4 * var(--u)); font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); margin-right: calc(1.2 * var(--u)); }
+body.theme-klar .greet { font-family: var(--sans); font-style: normal; font-weight: 600; font-size: calc(3.8 * var(--u)); letter-spacing: -.01em; }
+body.theme-klar .greet small { font-family: var(--sans); font-size: calc(1.6 * var(--u)); letter-spacing: 0; text-transform: none; color: var(--ink-3); margin-top: calc(.8 * var(--u)); font-weight: 400; }
+body.theme-klar :is(.row-label, .hero .kicker, .hints, .weather-chip .c, .tile .name span, .tile .tv, .stats-bar, .lead, .modal .lead, .s-nav button, .greet small) {
+  font-family: var(--sans); letter-spacing: 0 !important; text-transform: none !important; }
+body.theme-klar .row-label { font-size: calc(1.7 * var(--u)); font-weight: 600; color: var(--ink-2); }
+body.theme-klar .hero .kicker { font-size: calc(1.5 * var(--u)); color: var(--ink-3); }
+body.theme-klar .hero h1 { font-family: var(--sans); font-weight: 600; font-size: calc(4.2 * var(--u)); letter-spacing: -.015em; }
+body.theme-klar .hero p { color: var(--ink-2); }
+body.theme-klar .weather-chip .t { font-family: var(--sans); font-weight: 500; font-size: calc(2.6 * var(--u)); }
+body.theme-klar .weather-chip svg { color: var(--ink-2); }
+body.theme-klar .hints { font-size: calc(1.4 * var(--u)); }
+body.theme-klar .hints kbd { font-family: var(--sans); background: #1d1e20; border-color: transparent; }
+/* Kacheln: einfarbig, ohne Verlauf, ohne Nummer, ohne Glühen */
+body.theme-klar .tile { background: #1b1c1e; border-radius: calc(1 * var(--u)); outline-offset: 0; box-shadow: none; }
+body.theme-klar .tile .art.gen { background: #1b1c1e !important; }
+body.theme-klar .tile .art.gen::before, body.theme-klar .tile .art::after { display: none; }
+body.theme-klar .tile .shade { background: linear-gradient(0deg, rgba(16,17,18,.75), transparent 45%); }
+body.theme-klar .tile.has-logo .shade { background: none; }
+body.theme-klar .tile .num { display: none; }
+body.theme-klar .tile .tv { border: 0; background: #2a2b2e; color: var(--ink-2); font-size: calc(1.2 * var(--u)); }
+body.theme-klar .tile .name b { font-family: var(--sans); font-weight: 600; font-size: calc(2.1 * var(--u)) !important; }
+body.theme-klar .tile .name span { font-size: calc(1.35 * var(--u)); color: var(--ink-3); }
+body.theme-klar .tile.has-logo .art .logo.ring { background: none; border: 0; box-shadow: none; backdrop-filter: none; width: calc(6.4 * var(--u)); height: calc(6.4 * var(--u)); color: var(--ink-2); }
+body.theme-klar .tile.has-logo .art .logo.ring .mono { font-family: var(--sans); font-weight: 600; font-size: calc(4.6 * var(--u)); }
+body.theme-klar .focused.tile, body.theme-klar .tile:hover { transform: scale(1.04); outline: 2px solid #ececec; box-shadow: none; }
+body.theme-klar .focused.tile .art { transform: none; }
+body.theme-klar .focused.tile.has-logo .art .logo.ring { background: none; color: #fff; }
+body.theme-klar .focused.tile.has-logo .art .logo, body.theme-klar .tile.has-logo:hover .art .logo { transform: translate(-50%, -50%); }
+/* Knöpfe & Leisten: flach, Fokus = hell */
+body.theme-klar :is(.btn, .icon-btn, .qbtn, .chip, .quickbar button, .menu-list button, .s-nav button, .search) { background: #1d1e20; border-color: transparent; box-shadow: none; backdrop-filter: none; }
+body.theme-klar :is(.focused.btn, .focused.icon-btn, .qbtn.focused, .quickbar .focused, .menu-list button.focused, .s-nav button.focused) { background: #ececec; color: #111; border-color: #ececec; box-shadow: none; }
+body.theme-klar .modal { background: #18191b; border: 1px solid var(--line); box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0,0,0,.5); backdrop-filter: none; }
+body.theme-klar :is(.modal h3, .s-nav h2, .setup-card h2, #profiles h2) { font-family: var(--sans); font-style: normal; font-weight: 600; }
+body.theme-klar .cw .progress i { background: #ececec; }
+body.theme-klar .stats-bar { opacity: .7; }
+body.theme-klar .search-box .inp { background: #1d1e20; border-color: transparent; backdrop-filter: none; border-radius: calc(1 * var(--u)); }
+body.theme-klar .search-box .inp.focused { outline-color: #ececec; }
+body.theme-klar .qbtn { border-radius: calc(1 * var(--u)); font-family: var(--sans); letter-spacing: 0; text-transform: none; }
+body.theme-klar .qbtn .ic { color: var(--ink-2); }
+body.theme-klar .qbtn.focused, body.theme-klar .qbtn:hover { background: #ececec; color: #111; transform: none; }
+body.theme-klar * { text-transform: none !important; letter-spacing: 0 !important; }
+body.theme-klar .s-nav h2 { font-size: calc(3.4 * var(--u)); }
+body.theme-klar .vclock .digits { font-family: var(--sans); }

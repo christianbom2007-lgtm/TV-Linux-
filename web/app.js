@@ -52,6 +52,7 @@ const PRESETS = [
 ];
 /* Designarten der Oberfläche: id, Name, Beschreibung, Vorschau-Farben [Hintergrund, Text, Kachel, Akzent, Schrift] */
 const THEMES = [
+  ['klar', 'Klar', 'Schlicht & ruhig', ['#101112', '#ececec', '#1d1e20', '#ececec', "'Noto Sans', sans-serif"]],
   ['lichtung', 'Lichtung', 'Serif & Natur', ['#0c110f', '#efe9df', '#2b3a33', '#c8a26b', "'Fraunces', serif"]],
   ['kino', 'Kino', 'Schwarz & groß', ['#000', '#fff', '#2a1210', '#d9463b', "'Noto Sans', sans-serif"]],
   ['glas', 'Glas', 'Rund & hell', ['#2a3440', '#fff', 'rgba(255,255,255,.25)', '#e9edf2', "'Noto Sans', sans-serif"]],
@@ -98,6 +99,9 @@ function applyLook() {
     S.scene.start();
   }
   S.scene.setLocation(g.lat, g.lon);
+  // „Klar“: ruhiger, einfarbiger Hintergrund – keine Landschaft, keine Effekte
+  if ((g.theme || 'lichtung') === 'klar') { S.scene.stop(); S.klarStopped = true; }
+  else if (S.klarStopped) { S.klarStopped = false; S.scene.start(); }
   S.scene.setPhoto((g.background || '').startsWith('/') ? g.background : null);
   S.scene.set(sceneOpts(g));
   window.applyWebcam?.(g);   // Live-Webcam als Hintergrund (über der Landschaft)
@@ -190,12 +194,13 @@ function clockHTML(d = new Date()) {
 function tick() {
   const d = new Date();
   $('#clock').innerHTML = clockHTML(d);
+  const tc = $('#tclock'); if (tc) tc.textContent = L.pad(d.getHours()) + ':' + L.pad(d.getMinutes());
   $('#vdate').textContent = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
   const g = $('#greet');
   const greet = L.greeting(d);
   if (g.dataset.v !== greet + S.state?.active) {
     g.dataset.v = greet + S.state?.active;
-    g.innerHTML = `${greet}<small>${L.esc(L.dateStr(d))}</small>`;
+    g.innerHTML = `${greet.replace(/[.!]+$/, '')}<small>${L.esc(L.dateStr(d))}</small>`;
   }
   if (S.saverOn) renderSaver();
 }

@@ -153,7 +153,7 @@ async function paintSetup() {
         h('div', {}, h('kbd', {}, 'S'), ' Einstellungen'), h('div', {}, h('kbd', {}, 'T'), ' Schlaf-Timer'),
         h('div', {}, h('kbd', {}, '1 – 9'), ' Kachel direkt öffnen')),
       [btn('Zurück', prev), btn('Fernsehen', async () => {
-        await api('/api/general', 'POST', { setupDone: true });
+        await api('/api/general', 'POST', { setupDone: true, designAsked: 1 });
         await load();
         SETUP.onDone && SETUP.onDone();
       }, true)]);
